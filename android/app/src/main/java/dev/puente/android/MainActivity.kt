@@ -269,6 +269,7 @@ class MainActivity : ComponentActivity() {
             savedInstanceState?.takeIf { it.containsKey("tab") }?.getInt("tab"), model.paired)
         setContent {
             PuenteTheme {
+                LaunchedEffect(Unit) { updates.autoCheck() }
                 LaunchedEffect(model.paired) {
                     if (model.notification) QuickNotification.show(this@MainActivity)
                 }
@@ -277,7 +278,6 @@ class MainActivity : ComponentActivity() {
                 }
                 LaunchedEffect(model.paired, model.connected) {
                     if (model.paired && model.connected) {
-                        updates.autoCheck()
                         refreshAutomaticReceive()
                     }
                 }

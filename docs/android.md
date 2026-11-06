@@ -40,11 +40,11 @@ The notification has **Send**, **Receive** and **Attach** in its compact view. *
 
 Taking a screenshot doesn’t always put it on the clipboard: for that, use **Attach**, or **Share → CopyOver** from the gallery.
 
-## App updates from the PC
+## App updates from GitHub
 
 The PC checks the repository’s latest **stable release** when CopyOver starts and every hour, through the public GitHub API: no account, token or GitHub CLI needed. If there’s a newer desktop version, the tray tells you once and the panel shows “Version … available” with a download link.
 
-It downloads the APK once and keeps it in `.android-updates/`. The phone checks for a new version when it connects, and you can check by hand under **Updates**. Both must be on the same network. The phone gets the APK from the linked PC, never straight from the internet. Without internet or releases, the clipboard keeps working.
+The phone checks the public release directly when the app opens, and under **Settings → Check for updates**. Automatic checks also run approximately every six hours when Android permits them. A linked or powered-on PC is not needed. The phone compares the Android `versionCode` in `puente-update.json`, independently of the desktop version, and downloads the APK from that specific release. The PC still caches the APK in `.android-updates/` for its installation QR and older Android clients. Without internet, local clipboard transfers keep working.
 
 **Download** fetches the APK and **Install** opens the Android installer. The first time, Android may ask you to let CopyOver install apps. SHA-256, size, package name, a higher version and the same signing certificates as the installed app are all checked.
 
@@ -62,3 +62,17 @@ cd <repo-folder>
 The last command reads the APK version and writes `Puente.apk` and `puente-update.json` to `android/app/build/update/`. Upload **both files to the same stable release**. Pushing code doesn’t publish an update.
 
 Releases are signed with CopyOver’s own key, which stays out of the repository and only its owner keeps. The build reads `%USERPROFILE%\.android\copyover-signing.properties` (or the path in `COPYOVER_SIGNING_PROPERTIES`), with `storeFile`, `storePassword`, `keyAlias` and `keyPassword`. Without it, the release APK comes out unsigned. `prepare-update.ps1` refuses any APK signed with another key, because phones would reject it. Losing the key means no more updates: people would have to uninstall and install again.
+
+## Builds on GitHub
+
+The **Android** workflow builds and tests changes under `android/` on GitHub runners.
+The Windows release workflow also calls it after publishing the desktop assets.
+To build Android independently, run **Actions → Android → Run workflow**. Leave `release_tag`
+empty to save build artifacts only; enter an existing stable release tag to upload the signed APK
+and updater manifest without changing the Windows version.
+
+The repository needs four Actions secrets: `ANDROID_KEYSTORE_BASE64` (the existing official keystore
+encoded as Base64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`.
+Only the owner of the official key should configure them. The workflow checks the certificate before
+publishing and removes its temporary signing files. Without those secrets it produces an unsigned
+build artifact and publishes no Android update. Do not distribute that unsigned APK as an update.

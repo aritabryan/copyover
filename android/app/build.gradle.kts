@@ -44,8 +44,8 @@ android {
         resValue("string", "copyover_package", applicationId!!)
         minSdk = 26
         targetSdk = 36
-        versionCode = 23
-        versionName = "1.0.0"
+        versionCode = 24
+        versionName = "1.0.1"
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

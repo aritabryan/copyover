@@ -60,14 +60,7 @@ fun SettingsPanel(model: SettingsViewModel, updates: AppUpdateViewModel, shizuku
         }
         SettingRow(stringResource(R.string.settings_notification_buttons), R.drawable.ic_phone, model.notification, toggleNotification)
     }
-    SettingsGroup(stringResource(R.string.updates_title_version, updates.installedVersion)) {
-        SettingRow(stringResource(R.string.updates_auto), R.drawable.ic_refresh, updates.automatic) { updates.automaticEnabled(it); if (it) updates.autoCheck() }
-        if (updates.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        if (updates.downloaded != null) ActionButton(stringResource(R.string.install), R.drawable.ic_down, install, enabled = !updates.busy, primary = true)
-        else if (updates.available != null) ActionButton(stringResource(R.string.download), R.drawable.ic_down, updates::download, enabled = !updates.busy, primary = true)
-        Text(updates.message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        ActionRow(stringResource(R.string.check_updates), R.drawable.ic_refresh, { updates.check() }, enabled = model.paired && !updates.busy)
-    }
+    UpdateSettings(updates, install)
     ActionRow(stringResource(R.string.help), R.drawable.ic_help, { help = true })
     ActionRow(stringResource(R.string.licenses_title), R.drawable.ic_file, { licenses = true })
     if (licenses) OpenSourceLicensesScreen(onDismiss = { licenses = false })
@@ -84,6 +77,18 @@ fun SettingsPanel(model: SettingsViewModel, updates: AppUpdateViewModel, shizuku
                 HelpTopic(R.drawable.ic_down, R.string.help_updates_title, R.string.help_updates)
             }
         }, confirmButton = { TextButton(onClick = { help = false }) { Text(stringResource(R.string.close)) } })
+}
+
+@Composable
+fun UpdateSettings(updates: AppUpdateViewModel, install: () -> Unit) {
+    SettingsGroup(stringResource(R.string.updates_title_version, updates.installedVersion)) {
+        SettingRow(stringResource(R.string.updates_auto), R.drawable.ic_refresh, updates.automatic) { updates.automaticEnabled(it); if (it) updates.autoCheck() }
+        if (updates.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (updates.downloaded != null) ActionButton(stringResource(R.string.install), R.drawable.ic_down, install, enabled = !updates.busy, primary = true)
+        else if (updates.available != null) ActionButton(stringResource(R.string.download), R.drawable.ic_down, updates::download, enabled = !updates.busy, primary = true)
+        Text(updates.message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        ActionRow(stringResource(R.string.check_updates), R.drawable.ic_refresh, { updates.check() }, enabled = !updates.busy)
+    }
 }
 
 @Composable private fun SettingsGroup(title: String, content: @Composable ColumnScope.() -> Unit) {

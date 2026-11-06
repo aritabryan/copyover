@@ -58,16 +58,16 @@ object UpdateNotification {
     }
 }
 
-/** Asks the linked PC for a new version while the app is closed. If the PC is off, the next run tries again. */
+/** Checks the public release while the app is closed, without needing a linked PC. */
 class UpdateCheckJob : JobService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onStartJob(params: JobParameters): Boolean {
-        if (!UpdateNotification.automatic(this) || ConnectionStore(this).load().key.isEmpty()) return false
+        if (!UpdateNotification.automatic(this)) return false
         scope.launch {
             try {
                 val repository = AppUpdateRepository(this@UpdateCheckJob)
-                val (update, _) = repository.check(AutoConnection(this@UpdateCheckJob).current())
+                val (update, _) = repository.check()
                 if (update != null) UpdateNotification.show(this@UpdateCheckJob, update, repository.installedCode)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) { Log.i("CopyOver", "Update check skipped: ${error.javaClass.simpleName}") }

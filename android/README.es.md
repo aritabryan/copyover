@@ -4,6 +4,16 @@
 
 Android 8.0 o superior, arm64-v8a (teléfonos de 64 bits) y x86_64 (emuladores). La interfaz es Jetpack Compose; las transferencias HTTP se ejecutan en Rust mediante JNI. No utiliza WebView, no reemplaza el teclado y no necesita root, Tasker ni permisos amplios de almacenamiento.
 
+## Actualizaciones de la app
+
+Ajustes → Buscar actualización consulta el release público de GitHub sin necesitar una PC vinculada.
+La búsqueda automática también funciona con la app cerrada, aproximadamente cada seis horas cuando Android lo permite.
+La actualización se decide por el `versionCode` de Android en `puente-update.json`;
+publicar un EXE con la misma APK no genera una actualización del celular.
+La descarga usa la APK de ese release concreto y comprueba tamaño, SHA-256, paquete,
+versión y firma antes de abrir la confirmación de instalación de Android.
+Los releases deben incluir `Puente.apk` y `puente-update.json`, generados con `prepare-update.ps1`.
+
 ## Interfaz
 
 La navegación está abajo: **Historial**, **Archivos**, **Equipos** y **Ajustes**.

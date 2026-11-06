@@ -20,7 +20,8 @@ import java.io.IOException
 import java.security.MessageDigest
 import java.util.UUID
 
-data class AppUpdate(val versionCode: Long, val versionName: String, val size: Long, val sha256: String) {
+data class AppUpdate(val versionCode: Long, val versionName: String, val size: Long, val sha256: String,
+    val downloadUrl: String = "") {
     companion object {
         fun parse(json: JSONObject): AppUpdate {
             val update = AppUpdate(json.getLong("versionCode"), json.getString("versionName"),
@@ -47,6 +48,7 @@ private fun digest(bytes: ByteArray): String = MessageDigest.getInstance("SHA-25
     .digest(bytes).joinToString("") { "%02x".format(it) }
 
 class AppUpdateRepository(private val context: Context) {
+    private val github = GitHubUpdates()
     @Suppress("DEPRECATION")
     private val installed get() = context.packageManager.getPackageInfo(context.packageName, signatureFlags())
     val installedCode get() = installed.code()
@@ -55,29 +57,20 @@ class AppUpdateRepository(private val context: Context) {
     private fun signatureFlags(): Int = if (Build.VERSION.SDK_INT >= 28)
         PackageManager.GET_SIGNING_CERTIFICATES else @Suppress("DEPRECATION") PackageManager.GET_SIGNATURES
 
-    fun check(connection: Connection): Pair<AppUpdate?, String> {
-        val result = call(connection, "update_check")
-        val update = if (result.isNull("update")) null else AppUpdate.parse(result.getJSONObject("update"))
-        return update?.takeIf { it.versionCode > installedCode } to
-            if (update != null && update.versionCode <= installedCode) context.getString(R.string.update_latest)
-            else result.optString("message").ifEmpty { context.getString(R.string.update_none) }
+    fun check(): Pair<AppUpdate?, String> {
+        val update = github.check(installedCode)
+        return update to context.getString(R.string.update_latest)
     }
 
-    fun download(connection: Connection, update: AppUpdate): File {
+    fun download(update: AppUpdate): File {
         val root = File(context.cacheDir, "updates").apply { mkdirs() }
         // Each transfer is independent; an interrupted download cannot become an installer candidate.
         root.listFiles()?.filter { it.lastModified() < System.currentTimeMillis() - 86400000L }
             ?.forEach { it.deleteRecursively() }
         val directory = File(root, UUID.randomUUID().toString()).apply { check(mkdir()) }
         return try {
-            val result = call(connection, "update_download") {
-                put("sha256", update.sha256); put("output_dir", directory.absolutePath)
-            }
-            require(result.optString("kind") == "file") { context.getString(R.string.update_not_received) }
-            val downloaded = File(result.getString("path"))
-            require(downloaded.canonicalFile.parentFile == directory.canonicalFile) { context.getString(R.string.update_not_received) }
             val target = File(directory, "Puente.apk")
-            check(downloaded.renameTo(target)) { context.getString(R.string.update_save_failed) }
+            github.download(update, target)
             validate(target, update)
             target
         } catch (error: Exception) {
@@ -110,25 +103,18 @@ class AppUpdateRepository(private val context: Context) {
         }
     }
 
-    private fun call(connection: Connection, operation: String, extra: JSONObject.() -> Unit = {}): JSONObject {
-        val request = connection.nativeRequest(operation).apply(extra)
-        val result = JSONObject(NativeBridge.execute(request.toString()))
-        if (!result.getBoolean("ok")) throw NativeError(result.optString("code"), NativeMessages.translate(context, result.getString("message")))
-        return result
-    }
 }
 
 class AppUpdateViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = AppUpdateRepository(application)
     private fun text(id: Int, vararg args: Any): String = getApplication<Application>().getString(id, *args)
-    private val connection = AutoConnection(application)
     private val preferences = application.getSharedPreferences("updates", Context.MODE_PRIVATE)
     val installedVersion = repository.installedName
     var automatic by mutableStateOf(preferences.getBoolean("automatic", true))
         private set
     var busy by mutableStateOf(false)
         private set
-    var message by mutableStateOf(text(R.string.updates_from_pc))
+    var message by mutableStateOf(text(R.string.updates_from_github))
         private set
     var available by mutableStateOf<AppUpdate?>(null)
         private set
@@ -149,8 +135,7 @@ class AppUpdateViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun check() = operation(text(R.string.update_checking)) {
-        val resolved = connection.current()
-        val (update, status) = withContext(Dispatchers.IO) { repository.check(resolved) }
+        val (update, status) = withContext(Dispatchers.IO) { repository.check() }
         if (update != available) downloaded = null
         available = update
         // The app is open and shows it: a notification for this version would only repeat it.
@@ -161,8 +146,7 @@ class AppUpdateViewModel(application: Application) : AndroidViewModel(applicatio
     fun download() {
         val update = available ?: return
         operation(text(R.string.update_downloading)) {
-            val resolved = connection.current()
-            downloaded = withContext(Dispatchers.IO) { repository.download(resolved, update) }
+            downloaded = withContext(Dispatchers.IO) { repository.download(update) }
             message = text(R.string.update_ready)
         }
     }

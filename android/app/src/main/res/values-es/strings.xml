@@ -248,23 +248,24 @@
     </plurals>
 
     <!-- Actualizaciones -->
-    <string name="updates_from_pc">Las actualizaciones llegan desde tu PC.</string>
+    <string name="updates_from_github">Las actualizaciones se descargan directamente de GitHub.</string>
+    <string name="update_github_unavailable">No se pudo consultar GitHub. Inténtalo más tarde.</string>
     <string name="updates_allow_install">Permite instalar actualizaciones de CopyOver para continuar.</string>
     <string name="updates_authorize">Autoriza a CopyOver para instalar su actualización.</string>
     <string name="installer_failed">No se pudo abrir el instalador de Android.</string>
-    <string name="update_invalid">La PC ofreció una actualización que no se puede usar.</string>
-    <string name="update_latest">Tienes la última versión disponible en la PC.</string>
+    <string name="update_invalid">La información de la actualización no es válida.</string>
+    <string name="update_latest">Tienes la última versión de Android.</string>
     <string name="update_none">No hay actualizaciones disponibles.</string>
     <string name="update_not_received">La actualización no llegó desde la PC.</string>
     <string name="update_save_failed">No se pudo guardar la actualización.</string>
     <string name="update_incomplete">La descarga está incompleta o cambió. Vuelve a descargarla.</string>
     <string name="update_not_android_app">El archivo recibido no es una app de Android.</string>
     <string name="update_not_signed">Este archivo no es una actualización firmada de esta instalación de CopyOver.</string>
-    <string name="update_checking">Buscando actualizaciones en la PC…</string>
+    <string name="update_checking">Buscando actualizaciones en GitHub…</string>
     <string name="update_available">Versión %1$s disponible</string>
     <string name="update_notification_text">Toca para actualizar CopyOver.</string>
     <string name="channel_updates">Actualizaciones de la app</string>
-    <string name="update_downloading">Descargando desde la PC…</string>
+    <string name="update_downloading">Descargando desde GitHub…</string>
     <string name="update_ready">Lista para instalar</string>
     <string name="update_verifying">Comprobando la actualización…</string>
     <string name="update_confirm">Confirma la instalación en Android.</string>
@@ -323,7 +324,7 @@
     <string name="help">Ayuda</string>
     <string name="help_clipboard">Copia texto o una imagen en Windows y pégalo en el celular. Para copiar en sentido contrario, inicia Shizuku o toca «Enviar copiado».</string>
     <string name="help_history">Toca una copia para verla completa. La chincheta la conserva; la papelera borra los recientes. Se guardan hasta 100 copias durante 7 días y puedes fijar 20. Los textos muy largos no se guardan.</string>
-    <string name="help_updates">Deja CopyOver abierto en la PC y toca «Buscar actualización» en el celular.</string>
+    <string name="help_updates">Toca «Buscar actualización» para descargar desde GitHub. La PC puede estar apagada. Android te pedirá confirmar la instalación.</string>
     <string name="help_clipboard_title">Copiar y pegar</string>
     <string name="help_history_title">Historial</string>
     <string name="help_files_title">Fotos y documentos</string>

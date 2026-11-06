@@ -249,22 +249,23 @@
     </plurals>
 
     <!-- Updates -->
-    <string name="updates_from_pc">Updates come from your PC.</string>
+    <string name="updates_from_github">Updates download directly from GitHub.</string>
+    <string name="update_github_unavailable">Couldn\'t check GitHub. Try again later.</string>
     <string name="updates_allow_install">Allow CopyOver to install updates to continue.</string>
     <string name="updates_authorize">Allow CopyOver to install its update.</string>
     <string name="installer_failed">Couldn\'t open the Android installer.</string>
-    <string name="update_invalid">Your PC offered an update that can\'t be used.</string>
-    <string name="update_latest">You have the latest version available on your PC.</string>
+    <string name="update_invalid">The update information is invalid.</string>
+    <string name="update_latest">You have the latest Android version.</string>
     <string name="update_none">No updates available.</string>
     <string name="update_not_received">The update didn\'t arrive from your PC.</string>
     <string name="update_save_failed">Couldn\'t save the update.</string>
     <string name="update_incomplete">The download is incomplete or changed. Download it again.</string>
     <string name="update_not_android_app">The file you got isn\'t an Android app.</string>
     <string name="update_not_signed">This file isn\'t a signed update for this CopyOver install.</string>
-    <string name="update_checking">Checking for updates on your PC…</string>
+    <string name="update_checking">Checking GitHub for updates…</string>
     <string name="update_available">Version %1$s available</string>
     <string name="update_notification_text">Tap to update CopyOver.</string>
-    <string name="update_downloading">Downloading from your PC…</string>
+    <string name="update_downloading">Downloading from GitHub…</string>
     <string name="update_ready">Ready to install</string>
     <string name="update_verifying">Checking the update…</string>
     <string name="update_confirm">Confirm the install in Android.</string>
@@ -323,7 +324,7 @@
     <string name="help">Help</string>
     <string name="help_clipboard">Copy text or an image in Windows, then paste it on your phone. To copy the other way, start Shizuku or tap Send copied.</string>
     <string name="help_history">Tap a copy to see it in full. The pin keeps it; the trash button clears recent copies. History keeps up to 100 copies for 7 days and 20 pinned items. Very long texts are not saved.</string>
-    <string name="help_updates">Keep CopyOver open on your PC and tap Check for updates on your phone.</string>
+    <string name="help_updates">Tap Check for updates to download from GitHub. Your PC can be off. Android asks you to confirm installation.</string>
     <string name="help_clipboard_title">Copy and paste</string>
     <string name="help_history_title">History</string>
     <string name="help_files_title">Photos and documents</string>
