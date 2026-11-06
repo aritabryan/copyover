@@ -44,3 +44,10 @@ jobs:
             dist/CopyOver-windows.zip
             dist/latest.json
           generate_release_notes: true
+
+  android:
+    needs: windows
+    uses: ./.github/workflows/android.yml
+    with:
+      release_tag: ${{ github.ref_name }}
+    secrets: inherit

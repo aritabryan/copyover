@@ -1,0 +1,158 @@
+name: Android
+
+on:
+  push:
+    branches: [main]
+    paths: ["android/**", ".github/workflows/android.yml"]
+  pull_request:
+    paths: ["android/**", ".github/workflows/android.yml"]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing release to receive the signed APK (leave empty to build only)"
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      release_tag:
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      signed: ${{ steps.signing.outputs.ready }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - name: Android SDK and NDK
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006"
+      - name: Rust toolchain
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+      - name: Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            android/native/target
+          key: android-rust-${{ runner.os }}-${{ hashFiles('android/native/Cargo.lock', 'android/build-native.sh') }}
+      - name: Rust license tool
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          archive=cargo-about-0.9.3-x86_64-unknown-linux-musl.tar.gz
+          gh release download 0.9.3 --repo EmbarkStudios/cargo-about --pattern "$archive" --pattern "$archive.sha256" --dir "$RUNNER_TEMP/cargo-about"
+          cd "$RUNNER_TEMP/cargo-about"
+          sha256sum -c "$archive.sha256"
+          tar -xzf "$archive"
+          tool=$(find "$PWD" -type f -name cargo-about -print -quit)
+          test -n "$tool"
+          chmod +x "$tool"
+          dirname "$tool" >> "$GITHUB_PATH"
+      - name: Native libraries and licenses
+        run: bash android/build-native.sh
+      - name: Configure official signing
+        if: github.event_name != 'pull_request'
+        id: signing
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import base64, os
+          from pathlib import Path
+          names = ('KEYSTORE', 'STORE_PASSWORD', 'KEY_ALIAS', 'KEY_PASSWORD')
+          ready = all(os.environ.get(name) for name in names)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'ready={str(ready).lower()}\n')
+          if not ready:
+              print('::warning::Official signing secrets are missing. The APK will be unsigned and will not be published.')
+              raise SystemExit(0)
+          root = Path(os.environ['RUNNER_TEMP'])
+          keystore = root / 'copyover-release.jks'
+          keystore.write_bytes(base64.b64decode(''.join(os.environ['KEYSTORE'].split()), validate=True))
+          def escaped(value):
+              encoded = value.encode('utf-16-be')
+              return ''.join('\\u' + encoded[i:i+2].hex() for i in range(0, len(encoded), 2))
+          values = {'storeFile': str(keystore), 'storePassword': os.environ['STORE_PASSWORD'],
+                    'keyAlias': os.environ['KEY_ALIAS'], 'keyPassword': os.environ['KEY_PASSWORD']}
+          properties = root / 'copyover-signing.properties'
+          properties.write_text(''.join(f'{key}={escaped(value)}\n' for key, value in values.items()), encoding='ascii')
+          keystore.chmod(0o600)
+          properties.chmod(0o600)
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'COPYOVER_SIGNING_PROPERTIES={properties}\n')
+          PY
+      - name: Tests, APKs and lint
+        working-directory: android
+        run: bash gradlew testDebugUnitTest assembleRelease assembleDebugAndroidTest lintDebug lintRelease --console=plain
+      - name: Verify official APK and prepare updater files
+        if: steps.signing.outputs.ready == 'true'
+        run: |
+          apk=android/app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk" | tee "$RUNNER_TEMP/apk-certificate.txt"
+          grep -F 'certificate SHA-256 digest: a9a741b24fc6056ef7752f5ecaa45f29d57166ce308b69c161a1adb9c324441e' "$RUNNER_TEMP/apk-certificate.txt"
+          python - <<'PY'
+          import hashlib, json, os, re, shutil, subprocess
+          from pathlib import Path
+          apk = Path('android/app/build/outputs/apk/release/app-release.apk')
+          badging = subprocess.check_output([os.environ['ANDROID_HOME'] + '/build-tools/36.0.0/aapt', 'dump', 'badging', str(apk)], text=True)
+          package = re.search(r"^package: name='([^']+)' versionCode='(\d+)' versionName='([^']+)'", badging, re.M)
+          if not package or package[1] != 'dev.copyover.android':
+              raise SystemExit('Not a CopyOver APK')
+          output = Path('android/app/build/update')
+          output.mkdir(parents=True, exist_ok=True)
+          shutil.copyfile(apk, output / 'Puente.apk')
+          manifest = {'versionCode': int(package[2]), 'versionName': package[3],
+                      'size': apk.stat().st_size, 'sha256': hashlib.sha256(apk.read_bytes()).hexdigest()}
+          (output / 'puente-update.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+          PY
+      - name: Build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: CopyOver-android-${{ github.sha }}
+          path: |
+            android/app/build/outputs/apk/release/*.apk
+            android/app/build/update/*
+            android/app/build/reports/lint-results-*.html
+          if-no-files-found: error
+      - name: Signed updater artifact
+        if: steps.signing.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: CopyOver-android-update-${{ github.sha }}
+          path: android/app/build/update/*
+          if-no-files-found: error
+      - name: Remove signing files
+        if: always()
+        run: rm -f "$RUNNER_TEMP/copyover-release.jks" "$RUNNER_TEMP/copyover-signing.properties"
+
+  publish:
+    needs: build
+    if: needs.build.outputs.signed == 'true' && inputs.release_tag != '' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: CopyOver-android-update-${{ github.sha }}
+          path: update
+      - name: Publish Android update
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: gh release upload "$RELEASE_TAG" update/Puente.apk update/puente-update.json --clobber
