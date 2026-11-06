@@ -34,7 +34,7 @@ def _ps_quotes(text: str) -> str:
 
 
 def _windows_rules(exe, run):
-    """{"reglas": [...], "redes": [...]} with the enabled inbound rules for the executable and, for each
+    """{"rules": [...], "networks": [...]} with the enabled inbound rules for the executable and, for each
     active network, its category, name and IPs, or None if it couldn't be found out."""
     script = (
         f"$r = Get-NetFirewallApplicationFilter -Program {_ps_quotes(exe)} -ErrorAction SilentlyContinue | "
@@ -43,7 +43,7 @@ def _windows_rules(exe, run):
         "$n = Get-NetConnectionProfile -ErrorAction SilentlyContinue | ForEach-Object { [pscustomobject]@{ "
         "NetworkCategory = $_.NetworkCategory; Name = $_.Name; Ips = @(Get-NetIPAddress -InterfaceIndex "
         "$_.InterfaceIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue | ForEach-Object { $_.IPAddress }) } }; "
-        "ConvertTo-Json @{reglas=@($r); redes=@($n)} -Compress -Depth 3"
+        "ConvertTo-Json @{rules=@($r); networks=@($n)} -Compress -Depth 3"
     )
     try:
         r = run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
@@ -193,17 +193,21 @@ def fix(key, *, run=subprocess.run, platform=sys.platform, exe=None, port=8765) 
 def _windows_elevated_command(exe) -> list:
     """PowerShell as administrator: removes the program's blocks and adds the «CopyOver» rule."""
     internal = (
+        "$ErrorActionPreference = 'Stop'; try { "
         f"$p = {_ps_quotes(exe)}; "
         "Get-NetFirewallApplicationFilter -Program $p -ErrorAction SilentlyContinue | Get-NetFirewallRule | "
         "Where-Object { $_.Direction -eq 'Inbound' -and $_.Action -eq 'Block' } | Remove-NetFirewallRule; "
         f"Get-NetFirewallRule -DisplayName {_ps_quotes(APP_NAME)} -ErrorAction SilentlyContinue | "
         "Remove-NetFirewallRule; "
         f"New-NetFirewallRule -DisplayName {_ps_quotes(APP_NAME)} -Direction Inbound -Program $p "
-        "-Action Allow -Profile Private,Public | Out-Null"
+        "-Action Allow -Profile Private,Public | Out-Null; exit 0 "
+        "} catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }"
     )
     encoded = base64.b64encode(internal.encode("utf-16-le")).decode()
-    external = ("$p = Start-Process powershell -Verb RunAs -WindowStyle Hidden -Wait -PassThru "
-               f"-ArgumentList '-NoProfile','-EncodedCommand','{encoded}'; exit $p.ExitCode")
+    external = ("$ErrorActionPreference = 'Stop'; try { "
+               "$p = Start-Process powershell -Verb RunAs -WindowStyle Hidden -Wait -PassThru "
+               f"-ArgumentList '-NoProfile','-EncodedCommand','{encoded}'; exit $p.ExitCode "
+               "} catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }")
     return ["powershell", "-NoProfile", "-NonInteractive", "-Command", external]
 
 

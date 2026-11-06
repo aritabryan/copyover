@@ -6,6 +6,10 @@ Rules for the translations:
 """
 
 ES = {
+    "Firewall permission updated. Try connecting again.": "Permiso del firewall actualizado. Intenta conectarte de nuevo.",
+    "Couldn’t apply the firewall change. Accept the Windows prompt and try again.": "No se pudo cambiar el firewall. Acepta el aviso de Windows e inténtalo de nuevo.",
+    "The firewall still blocks CopyOver. Check the Windows rule or your network policy.": "El firewall sigue bloqueando CopyOver. Revisa la regla de Windows o las restricciones de tu red.",
+    "Couldn’t contact CopyOver. Try again.": "No se pudo contactar con CopyOver. Inténtalo de nuevo.",
     "Also notify when copying text or images": "Avisar también al copiar texto o imágenes",
     "Clipboard notifications": "Avisos del portapapeles",
     "Delete from history": "Eliminar del historial",

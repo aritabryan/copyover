@@ -1294,8 +1294,16 @@ Device name (optional): at the end of each URL, ${'?device='} and the “Device 
       const r = await fetch('/app/fix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: button.dataset.key }) });
       const d = await r.json();
       paintDiagnostics(d.problems || []);
-      if (!d.ok) { button.disabled = false; button.textContent = text; }
+      if (!r.ok || !d.ok) {
+        showToast('Couldn’t apply the firewall change. Accept the Windows prompt and try again.');
+      } else if ((d.problems || []).some(problem => problem.key === button.dataset.key)) {
+        showToast('The firewall still blocks CopyOver. Check the Windows rule or your network policy.');
+      } else {
+        showToast('Firewall permission updated. Try connecting again.');
+      }
     } catch (e) {
+      showToast('Couldn’t contact CopyOver. Try again.');
+    } finally {
       button.disabled = false;
       button.textContent = text;
     }

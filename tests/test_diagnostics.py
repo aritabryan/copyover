@@ -1,4 +1,7 @@
 import json
+import base64
+import re
+import shutil
 import unittest.mock
 import subprocess
 import sys
@@ -117,6 +120,41 @@ class DiagnosticsTests(unittest.TestCase):
     def test_fix_unknown_key(self):
         self.assertFalse(diagnostics.fix("onedrive", run=run_with(), platform="win32", exe="x",
                                               port=8765))
+
+    @unittest.skipUnless(sys.platform == "win32" and shutil.which("powershell"), "Windows PowerShell required")
+    def test_real_query_schema_recognizes_an_existing_allow_rule(self):
+        stubs = """
+function Get-NetFirewallApplicationFilter { [pscustomobject]@{Program='test.exe'} }
+function Get-NetFirewallRule { process { [pscustomobject]@{Enabled='True';Direction='Inbound';Action=2;Profile=6} } }
+function Get-NetConnectionProfile { [pscustomobject]@{NetworkCategory=1;Name='Test network';InterfaceIndex=123} }
+function Get-NetIPAddress { [pscustomobject]@{IPAddress='192.168.1.5'} }
+"""
+        def run(command, **kwargs):
+            return subprocess.run([*command[:-1], stubs + command[-1]], **kwargs)
+        self.assertEqual(self._check(run), [])
+
+    @unittest.skipUnless(sys.platform == "win32" and shutil.which("powershell"), "Windows PowerShell required")
+    def test_cancelled_elevation_is_not_reported_as_success(self):
+        command = diagnostics._windows_elevated_command("C:/test/CopyOver.exe")
+        stub = "function Start-Process { Write-Error 'Elevation cancelled' }; "
+        result = subprocess.run([*command[:-1], stub + command[-1]], capture_output=True, text=True, timeout=15,
+                                creationflags=subprocess.CREATE_NO_WINDOW)
+        self.assertNotEqual(result.returncode, 0)
+
+    @unittest.skipUnless(sys.platform == "win32" and shutil.which("powershell"), "Windows PowerShell required")
+    def test_failure_to_remove_a_block_cannot_be_hidden_by_later_success(self):
+        command = diagnostics._windows_elevated_command("C:/test/CopyOver.exe")
+        encoded = re.search(r"'-EncodedCommand','([^']+)'", command[-1])[1]
+        script = base64.b64decode(encoded).decode("utf-16-le")
+        stubs = """
+function Get-NetFirewallApplicationFilter { [pscustomobject]@{Program='test.exe'} }
+function Get-NetFirewallRule { process { [pscustomobject]@{Direction='Inbound';Action='Block'} } }
+function Remove-NetFirewallRule { process { Write-Error 'Rule cannot be removed' } }
+function New-NetFirewallRule { }
+"""
+        result = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", stubs + script],
+                                capture_output=True, text=True, timeout=15, creationflags=subprocess.CREATE_NO_WINDOW)
+        self.assertNotEqual(result.returncode, 0)
 
 
 
