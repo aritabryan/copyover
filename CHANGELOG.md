@@ -2,6 +2,20 @@
 
 All notable changes to CopyOver. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.0.1 — 2026-11-05
+
+### Fixed
+
+- Windows firewall diagnostics now recognize existing rules. Cancelled administrator prompts and failed rule changes no longer count as successful fixes; the panel reports the result.
+
+### Android
+
+- Check and download updates directly from public GitHub releases, without a linked or powered-on PC.
+- Keep automatic update checks and notifications, using the Android version independently of Windows releases.
+- Find an earlier Android update when the latest release only contains Windows files.
+- Verify the APK size, SHA-256, package, version and signing certificate before installation.
+- Build and sign release APKs on GitHub with the existing official certificate, and publish the updater manifest alongside the APK.
+
 ## 1.0.0 — 2026-11-05
 
 First public release.

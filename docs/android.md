@@ -65,14 +65,15 @@ Releases are signed with CopyOver’s own key, which stays out of the repository
 
 ## Builds on GitHub
 
-The **Android** workflow builds and tests changes under `android/` on GitHub runners.
-The Windows release workflow also calls it after publishing the desktop assets.
-To build Android independently, run **Actions → Android → Run workflow**. Leave `release_tag`
-empty to save build artifacts only; enter an existing stable release tag to upload the signed APK
-and updater manifest without changing the Windows version.
+The **Android** workflow runs tests and produces unsigned build artifacts for Android changes.
+Official APKs are built only by **Release**, on pushes of `v...` tags, after the Windows release.
+The Android job runs `android/build.ps1 -Release` and `android/prepare-update.ps1`; the latter
+rejects any certificate except the existing official SHA-256 fingerprint
+`a9a741b24fc6056ef7752f5ecaa45f29d57166ce308b69c161a1adb9c324441e`.
 
 The repository needs four Actions secrets: `ANDROID_KEYSTORE_BASE64` (the existing official keystore
-encoded as Base64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`.
-Only the owner of the official key should configure them. The workflow checks the certificate before
-publishing and removes its temporary signing files. Without those secrets it produces an unsigned
-build artifact and publishes no Android update. Do not distribute that unsigned APK as an update.
+encoded as Base64), `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`.
+The release job decodes the keystore and creates its signing properties in the runner’s temporary
+folder, never prints the secret values, and removes both files in an `always()` cleanup step.
+The verified `Puente.apk` and `puente-update.json` are uploaded to the same tagged release.
+Missing or incorrect signing secrets fail the Android release instead of publishing an unsigned APK.

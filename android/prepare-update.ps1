@@ -43,4 +43,4 @@ $tempManifest = Join-Path $cache 'latest.json.tmp'
 [IO.File]::WriteAllText($tempManifest, $json, [Text.UTF8Encoding]::new($false))
 Move-Item -LiteralPath $tempManifest -Destination (Join-Path $cache 'latest.json') -Force
 Write-Output "Version $versionName prepared in $output"
-Write-Output 'Available from Check for updates on the phone connected to this PC.'
+Write-Output 'Upload Puente.apk and puente-update.json to the release to make the update available.'

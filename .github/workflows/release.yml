@@ -1,8 +1,7 @@
 name: Release
 
-# Pushing a v1.2.3 tag builds CopyOver.exe and publishes the release with the installer and the zip.
+# Version tags build and publish Windows and officially signed Android packages.
 on:
-  workflow_dispatch:
   push:
     tags: ["v*"]
 
@@ -14,13 +13,14 @@ jobs:
     runs-on: windows-latest
     env:
       COPYOVER_LANGUAGE: es  # the tests compare Spanish texts
+      COPYOVER_IDIOMA: es
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
-      - name: La etiqueta coincide con version.py
+      - name: Verify tag matches version.py
         shell: pwsh
         run: |
           $version = (python -c "import version; print(version.VERSION)").Trim()
@@ -46,8 +46,103 @@ jobs:
           generate_release_notes: true
 
   android:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: windows
-    uses: ./.github/workflows/android.yml
-    with:
-      release_tag: ${{ github.ref_name }}
-    secrets: inherit
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      COPYOVER_LANGUAGE: es
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - name: Android SDK and NDK
+        shell: pwsh
+        run: |
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006"
+          if ($LASTEXITCODE) { throw 'Android SDK setup failed.' }
+      - name: Rust toolchain and dependencies
+        shell: pwsh
+        run: |
+          rustup toolchain install stable --profile minimal
+          if ($LASTEXITCODE) { throw 'Rust setup failed.' }
+          rustup default stable
+          if ($LASTEXITCODE) { throw 'Rust selection failed.' }
+          cargo fetch --manifest-path android/native/Cargo.toml --locked
+          if ($LASTEXITCODE) { throw 'Rust dependencies could not be fetched.' }
+      - name: Rust license tool
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $archive = 'cargo-about-0.9.3-x86_64-pc-windows-msvc.tar.gz'
+          $directory = Join-Path $env:RUNNER_TEMP 'cargo-about'
+          gh release download 0.9.3 --repo EmbarkStudios/cargo-about --pattern $archive --pattern "$archive.sha256" --dir $directory
+          if ($LASTEXITCODE) { throw 'Could not download the Rust license tool.' }
+          $expected = ((Get-Content -LiteralPath (Join-Path $directory "$archive.sha256") -Raw).Trim() -split '\s+')[0]
+          $actual = (Get-FileHash -LiteralPath (Join-Path $directory $archive) -Algorithm SHA256).Hash
+          if ($actual -ine $expected) { throw 'Rust license tool checksum mismatch.' }
+          tar -xzf (Join-Path $directory $archive) -C $directory
+          if ($LASTEXITCODE) { throw 'Could not extract the Rust license tool.' }
+          $tool = Get-ChildItem -LiteralPath $directory -Recurse -Filter cargo-about.exe -File | Select-Object -First 1
+          if (-not $tool) { throw 'Rust license tool not found.' }
+          $tool.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Configure official Android signing
+        shell: pwsh
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($name in @('KEYSTORE_BASE64', 'STORE_PASSWORD', 'KEY_ALIAS', 'KEY_PASSWORD')) {
+              if ([string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($name))) {
+                  throw 'An Android signing secret is missing.'
+              }
+          }
+          $keystore = Join-Path $env:RUNNER_TEMP 'copyover-release.jks'
+          $properties = Join-Path $env:RUNNER_TEMP 'copyover-signing.properties'
+          [IO.File]::WriteAllBytes($keystore, [Convert]::FromBase64String($env:KEYSTORE_BASE64))
+          $values = [ordered]@{
+              storeFile = $keystore
+              storePassword = $env:STORE_PASSWORD
+              keyAlias = $env:KEY_ALIAS
+              keyPassword = $env:KEY_PASSWORD
+          }
+          $lines = foreach ($entry in $values.GetEnumerator()) {
+              $escaped = -join ($entry.Value.ToCharArray() | ForEach-Object { '\u{0:x4}' -f [int]$_ })
+              '{0}={1}' -f $entry.Key, $escaped
+          }
+          [IO.File]::WriteAllLines($properties, [string[]]$lines, [Text.UTF8Encoding]::new($false))
+          "COPYOVER_SIGNING_PROPERTIES=$properties" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Build signed Android release
+        shell: pwsh
+        run: .\android\build.ps1 -Release
+      - name: Verify certificate and prepare Android update
+        shell: pwsh
+        run: .\android\prepare-update.ps1
+      - name: Publish Android update
+        uses: softprops/action-gh-release@v2
+        with:
+          fail_on_unmatched_files: true
+          files: |
+            android/app/build/update/Puente.apk
+            android/app/build/update/puente-update.json
+      - name: Remove Android signing files
+        if: always()
+        shell: pwsh
+        run: |
+          foreach ($name in @('copyover-release.jks', 'copyover-signing.properties')) {
+              $path = Join-Path $env:RUNNER_TEMP $name
+              if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force -ErrorAction Stop }
+          }
