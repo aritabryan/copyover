@@ -2,6 +2,13 @@
 
 All notable changes to CopyOver. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.0.2 — 2026-11-05
+
+### Fixed
+
+- Declare the network-state permission required when scheduling update checks on Android 14 and later, preventing a crash before the main screen opens.
+- Run an Android 15 emulator startup test in CI to exercise activity launch and background job scheduling.
+
 ## 1.0.1 — 2026-11-05
 
 ### Fixed
