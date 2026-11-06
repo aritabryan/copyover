@@ -63,7 +63,9 @@ jobs:
           chmod +x "$tool"
           dirname "$tool" >> "$GITHUB_PATH"
       - name: Native libraries and licenses
-        run: bash android/build-native.sh
+        run: |
+          cargo fetch --manifest-path android/native/Cargo.toml --locked
+          bash android/build-native.sh
       - name: Configure official signing
         if: github.event_name != 'pull_request'
         id: signing
