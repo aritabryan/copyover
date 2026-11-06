@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CopyOver</title>
+<style>
+<!-- include: preview.css --></style>
+</head>
+<body>
+  <header class="cab">
+    <div class="logo">
+      <svg width="17" height="17" viewBox="3 3 58 58" fill="currentColor" aria-hidden="true"><path d="M37.92 15A6 6 0 0 0 32 10H16a6 6 0 0 0-6 6v24a6 6 0 0 0 6 6h4.5" fill="none" stroke="currentColor" stroke-width="3.2"/><rect x="18" y="5" width="12" height="7.5" rx="2.5"/><path d="M30 21v2a4 4 0 0 0 4 4h10a4 4 0 0 0 4-4v-2a6 6 0 0 1 6 6v26a6 6 0 0 1-6 6H30a6 6 0 0 1-6-6V27a6 6 0 0 1 6-6z"/><rect x="32.5" y="17.5" width="13" height="7" rx="2.5"/></svg>
+    </div>
+    <div style="min-width:0;">
+      <div class="title">CopyOver</div>
+      <div class="state" id="state">Connecting…</div>
+    </div>
+    <button class="close" type="button" aria-label="Close" onclick="hide()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </header>
+
+  <button class="row back" id="back" type="button" onclick="showSection('history')" hidden>← Back</button>
+  <main class="list" id="list" aria-label="History"></main>
+  <section class="menu" id="devices" hidden>
+    <div id="device-list"></div>
+    <div class="separator"></div>
+    <button class="row" type="button" onclick="action('manage_pcs')">Manage linked PCs…</button>
+    <button class="row" type="button" onclick="action('link_android')">Link Android</button>
+    <button class="row" type="button" onclick="action('link_iphone')">Link iPhone or iPad</button>
+    <button class="row" type="button" onclick="action('connect_pc')">Link another PC</button>
+  </section>
+  <section class="preferences" id="settings" hidden>
+    <label id="autostart-row">Start with Windows<input id="autostart" type="checkbox" onchange="saveAutostart(this)"></label>
+    <label>File notifications<input id="notices" type="checkbox" onchange="saveNotices(this)"></label>
+    <label>Clipboard notifications<input id="clipboard-notices" type="checkbox" onchange="saveClipboardNotices(this)"></label>
+    <label>Language<select id="language" onchange="saveLanguage(this)"><option value="es">Español</option><option value="en">English</option></select></label>
+  </section>
+
+  <footer class="footer" aria-label="CopyOver actions">
+    <button class="btn btn-primary" type="button" onclick="action('send_phone')">Send to phone</button>
+    <button class="btn" type="button" onclick="action('send_pc')">Send to another PC</button>
+    <button class="btn" type="button" onclick="showSection('devices')">Linked computers</button>
+    <button class="btn" type="button" onclick="showSection('settings')">Settings</button>
+    <button class="btn" type="button" onclick="action('open_panel')">Open panel</button>
+    <button class="btn" type="button" onclick="action('open_folder')">Open folder</button>
+    <button class="btn quit" type="button" onclick="quitApp()">Quit</button>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+<!-- include: preview.js --></script>
+</body>
+</html>

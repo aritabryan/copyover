@@ -1,0 +1,31 @@
+[package]
+name = "puente-core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[lib]
+name = "puente_core"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = { version = "2.12", default-features = false }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+url = "2"
+percent-encoding = "2"
+getrandom = "0.2"
+hmac = "0.12"
+sha2 = "0.10"
+hkdf = "0.12"
+aes-gcm = "0.10"
+base64 = "0.22"
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"
+
+[dev-dependencies]
+tempfile = "3"

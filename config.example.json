@@ -1,0 +1,11 @@
+{
+  "name": "copyover-pc",
+  "port": 8765,
+  "key": "change-this-key",
+  "tray_icon": true,
+  "notifications": true,
+  "download_folder": "",
+  "keep_days": 0,
+  "language": "en",
+  "phone_clipboard": "imagenes"
+}

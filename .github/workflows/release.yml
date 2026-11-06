@@ -1,0 +1,46 @@
+name: Release
+
+# Pushing a v1.2.3 tag builds CopyOver.exe and publishes the release with the installer and the zip.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      COPYOVER_LANGUAGE: es  # the tests compare Spanish texts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: La etiqueta coincide con version.py
+        shell: pwsh
+        run: |
+          $version = (python -c "import version; print(version.VERSION)").Trim()
+          if ("v$version" -ne "${{ github.ref_name }}") { throw "version.py says $version but the tag is ${{ github.ref_name }}" }
+      - name: Tests
+        run: |
+          python -m pip install -r requirements.txt
+          python -m unittest discover -s tests -p "test_*.py"
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+      - name: Build
+        shell: pwsh
+        run: .\build.ps1
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/CopyOver-Setup-*.exe
+            dist/CopyOver-windows.zip
+            dist/latest.json
+          generate_release_notes: true

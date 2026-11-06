@@ -1,0 +1,2 @@
+-keep class dev.puente.android.NativeBridge { *; }
+-keep class dev.puente.android.ShizukuClipboardService { *; }

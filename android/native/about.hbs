@@ -1,0 +1,24 @@
+Rust libraries inside libpuente_core.so
+=======================================
+
+This library includes the following open source Rust crates.
+Each license below lists the crates that use it, followed by its full text.
+
+Summary
+-------
+{{#each overview}}
+{{{name}}} ({{id}}): {{count}} crate(s)
+{{/each}}
+{{#each licenses}}
+
+
+------------------------------------------------------------
+{{{name}}} ({{id}})
+------------------------------------------------------------
+Used by:
+{{#each used_by}}
+  - {{crate.name}} {{crate.version}}
+{{/each}}
+
+{{{text}}}
+{{/each}}

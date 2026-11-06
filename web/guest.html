@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CopyOver">
+<title>CopyOver — Live Mobile App</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<style>
+<!-- include: guest.css --></style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="live-pill"><span class="dot"></span> <span id="live-txt">CONNECTING…</span></div>
+      <h1 style="font-size:22px; font-weight:750;" id="pc-title">CopyOver</h1>
+      <p style="font-size:13px; color:var(--sub);">No 500 MB limit · Send and receive up to 10 GB</p>
+      <div style="font-size:12px; color:var(--accent-bright); margin-top:4px;" id="device-chip"></div>
+    </div>
+
+    <div class="card card-who" id="who-card">
+      <div style="font-size:15px; font-weight:700;">Which one are you?</div>
+      <div style="font-size:12.5px; color:var(--sub);">Pick this device so the PC shows it with its name.</div>
+      <div style="display:flex; flex-direction:column; gap:8px;" id="who-list"></div>
+      <button class="btn" onclick="chooseOtherDevice()">I’m another device</button>
+    </div>
+
+    <div class="card card-Incoming" id="incoming-card">
+      <div style="font-size:12px; font-weight:750; color:var(--accent-bright); text-transform:uppercase;">
+        Your PC is sending you:
+      </div>
+      <div style="font-size:17px; font-weight:750; word-break:break-word;" id="inc-name">File</div>
+      <div style="font-size:13px; color:var(--sub);" id="inc-size"></div>
+      <a class="btn btn-primary" id="inc-download-btn" href="#" download onclick="markReceived()">
+        Get it on this device
+      </a>
+      <button class="btn btn-primary" id="inc-copy-btn" style="display:none;" onclick="copyOfferText()">
+        Copy received text
+      </button>
+    </div>
+
+    <div class="card">
+      <div style="font-size:15px; font-weight:700;">Send photos or files to the PC</div>
+      <input type="file" id="file-input" multiple style="display:none;" onchange="uploadByStreaming(this.files)">
+      <div class="dropzone" onclick="document.getElementById('file-input').click()">
+        <div style="margin-bottom:6px; color:var(--accent-bright);"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+        <div style="font-size:14.5px; font-weight:700;">Tap to choose photos or videos</div>
+        <div style="font-size:12px; color:var(--sub); margin-top:3px;">Handles large files up to 10 GB</div>
+      </div>
+      <div class="prog-track" id="prog-bg"><div class="prog-fill" id="prog-fill"></div></div>
+      <div style="font-size:12.5px; color:var(--sub); text-align:center;" id="status-txt"></div>
+    </div>
+
+    <div class="card">
+      <div style="font-size:15px; font-weight:700;">Send text to the PC’s clipboard</div>
+      <textarea id="text-input" placeholder="Paste or type here to send it to your PC..."></textarea>
+      <button class="btn" onclick="sendText()">Send text to the PC</button>
+    </div>
+
+    <div class="card">
+      <div style="font-size:14px; font-weight:650; color:var(--sub);">What the PC has copied right now</div>
+      <a class="btn" id="btn-manual-download" href="#" download>Download what the PC has</a>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+<!-- include: guest.js --></script>
+</body>
+</html>

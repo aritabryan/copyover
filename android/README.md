@@ -1,0 +1,197 @@
+# Native Android (Kotlin + Rust)
+
+**English** · [Español](README.es.md)
+
+Android 8.0 or newer, arm64-v8a (64-bit phones) and x86_64 (emulators). The interface is Jetpack Compose; HTTP transfers run in Rust through JNI. It doesn't use a WebView, doesn't replace the keyboard and doesn't need root, Tasker or broad storage permissions.
+
+## Interface
+
+Navigation is at the bottom: **History**, **Files**, **PCs** and **Settings**.
+History shows 20 copies per page, with Previous and Next always visible when there are multiple pages.
+Long text uses a short preview; opening or copying an entry keeps its full content.
+History is a single scrolling list, including the header
+buttons. As you scroll, the whole screen can go to your saved copies.
+Each entry can be copied or pinned; tapping it opens it in full and the menu offers to delete it.
+History settings and explanations are in Settings.
+
+The home screen shows **Send copy**, **Receive** and **Send file** above compact history rows.
+The trash button beside the title asks for confirmation and keeps pinned copies.
+Receiving, Shizuku and last delivery details are in Settings.
+A saved PC isn't shown as connected without checking. Linking errors stay visible even when PCs have been
+discovered. The light or dark theme follows the system, and the buttons rearrange
+with a large font.
+
+This version keeps links and history when installed over the previous one with the
+same signature. The UI tests include a list of 30 copies on a small screen;
+they need a device or emulator to run.
+
+## Building on Windows
+
+You need JDK 17, stable Rust, Android SDK Platform 36, Build Tools and NDK **27.1.12297006**. Install the SDK/NDK from Android Studio → SDK Manager. The Rust license notices need `cargo-about` (`cargo install cargo-about --locked`, or the binary from its GitHub releases in `~/.cargo/bin`). The first build needs internet for Gradle, Maven and Cargo.
+
+```powershell
+# From the repository root; adjust the path to your SDK.
+./android/build.ps1 -Sdk C:\Android
+```
+
+The script installs the Rust targets `aarch64-linux-android` and `x86_64-linux-android`, builds both native libraries, puts them in `app/src/main/jniLibs/` and runs `assembleDebug`, `testDebugUnitTest` and `lintDebug`.
+
+APK: `android/app/build/outputs/apk/debug/app-debug.apk`. It's a debug build signed with the local development key, fine for installing and testing. Add `-Release` to also get the signed APK in `android/app/build/outputs/apk/release/app-release.apk`; `docs/android.md` explains where the key lives. Play Store publishing isn't set up.
+
+You can copy the APK to the phone and open it, allowing installs from that app, or use a device with authorized USB debugging:
+
+```powershell
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+To work from Android Studio, open `android/`. Build the Rust part first with `./android/build.ps1 -Sdk C:\Android -NativeOnly`. If Studio can't find the SDK, set `sdk.dir=C:/Android` in `android/local.properties`; that file is local and ignored by Git. The compiled libraries are ignored too; Gradle refuses to package an APK if any architecture is missing.
+
+On Linux/macOS: set `ANDROID_HOME`, install JDK 17, Rust and the same SDK/NDK; run `bash android/build-native.sh`, then `bash android/gradlew -p android assembleDebug testDebugUnitTest lintDebug`.
+
+## Setup and use
+
+1. Update the PC dependencies with `python -m pip install -r requirements.txt` and restart the server with `python puente.py`.
+2. Install the updated APK on Android. Open CopyOver with both devices on the same Wi-Fi: a list of PCs shows up. If it's empty, search again.
+3. Pick your PC. Compare the code shown on Android with the window that opens on the PC and accept there. Then tap **The code matches** on Android. This is only needed the first time; you don't type an IP, key or code, and no QR is used.
+4. Automatic receiving from the PC is turned on when linking. Copy text or an image on Windows and paste it on Android. The **CopyOver · PC → Android** notification lets you pause it. Open CopyOver to turn it back on.
+5. Copy text and tap **Send copied** in the notification. Android opens a small panel over the app you are in to read the clipboard and send it. If it works, the panel closes by itself within a second; if it fails, or a file arrives, it stays open with its options.
+6. **Receive** is still there for manual transfers, including files; it offers **Save as…** and **Share file**. **Send file** opens the system picker to send from Android.
+7. To send photos or files from any app, use **Share → CopyOver → Send to PC**. Several files work too, up to 100 at a time.
+8. The same buttons also live outside the app and work even with CopyOver closed: **Send** and **Receive** as Quick Settings tiles (edit the shade to add them), all three buttons by long-pressing the app icon, and in the CopyOver home screen widget.
+
+The **Buttons in the notification** option is separate and shows the send and receive buttons.
+You keep your current keyboard. Only Windows → Android is automatic. The service writes the Android
+clipboard without reading it; reading in the background is still restricted by Android. [Official restriction](https://developer.android.com/about/versions/10/privacy/changes#clipboard-data).
+
+Automatic receiving needs Windows on the PC and an updated CopyOver on both devices (APK 0.5.0 or newer).
+It uses a `connectedDevice` foreground service and a persistent notification, with no accessibility permissions,
+root or debugging. The phone keeps an authenticated request open for up to 20 seconds, which ends when
+the Windows clipboard counter changes. Nothing is downloaded while nothing changes. The PC's identity is
+checked again before each wait, and the cursor is only confirmed after a successful copy.
+The cursor survives restarts so an old Windows copy isn't applied again.
+Manual receiving retries up to three times on connection or server failures.
+Link or certificate rejections are shown without continuous retries; check Devices.
+
+It handles text up to **256 KiB UTF-8**, to stay under the system Binder limit, and PNG images up to
+**32 MiB**. Images are written as FileProvider URIs so they can be pasted into apps that accept images;
+files copied in Explorer are still manual. Automatic images that aren't used are deleted; the current
+and previous ones are kept so another app can finish a read it already started.
+An image on the clipboard and a file path copied in Explorer are different formats.
+
+The service tries to resume when the phone restarts, as long as the option is still on. If you force-stop
+CopyOver, you'll have to open it again. Doze, Samsung's battery saver or an isolated network
+can delay receiving; those cases still need checking on a real phone. Instant receiving isn't promised
+while the phone is asleep. The Android clipboard isn't cleared if the Windows one is empty.
+
+Before linking, Android lists PCs through NSD. After linking, and before sending or receiving, it looks for the remembered PC's identifier even if its IP or announced port changed. **Test PC connection** runs the check again; **PCs → Link another PC** goes back to the search. Links from earlier versions are kept on update.
+
+Linking uses a SHA256 commitment made before the phone's ephemeral public key is revealed. The PC fixes its key and session before that reveal; both derive the comparison code with X25519 and HKDF-SHA256. Accepting on the PC hands over the configuration encrypted with AES-GCM. Android only saves it after the code is confirmed. A request expires after two minutes, and the desktop window closes if it's ignored. Only one window shows at a time, with per-address and per-minute limits.
+
+On Windows a native dialog appears and no extra console opens. On Linux, accepting needs `zenity` or `kdialog`; on Fedora, for example: `sudo dnf install zenity`. If neither is available, the request is rejected and the reason is logged.
+
+After linking, Rust checks an HMAC-SHA256 challenge before sending the key to a discovered or saved address. The verified address is pinned for the ping and the transfer.
+
+**Encryption.** The configuration the PC hands over when linking includes its certificate authority (CA) and that CA's SHA-256 fingerprint; Android stores it next to the key. With it, everything goes over HTTPS (rustls) on the same port and only a certificate signed by that CA is accepted. The server name isn't checked, because the PC's IP changes; the chain, the dates and the CA's name constraints are. If the PC answers with a different certificate, nothing is sent and the app warns you. Links made with an older PC version have no CA and stay on HTTP; the PCs screen marks them **Not encrypted** until they're linked again. The camera and the QR reader were removed from the app. The PC's `--qr` command is only kept for old Android versions.
+
+If the network blocks multicast, the initial list may be empty. For existing links, the `.local` name and the last known address are tried; a network that isolates devices prevents the connection. The app can't lift those router restrictions.
+
+The manual buttons notification doesn't need a service; automatic receiving does. Both are restored
+after a restart or update if their options are still on. Android allows the foreground service to keep
+running even if notifications are denied; it stays visible in Android's task manager.
+Open the app if the manufacturer stopped the service or you dismissed the notification.
+
+## Sending from Android: two options
+
+Under **Sending from this phone** you can choose:
+
+- **Manual**: keeps the send buttons and Share. Used while Shizuku has no permission.
+- **Automatic with Shizuku**: watches for new text and image copies and sends them to the linked PC.
+
+Install and start [Shizuku](https://shizuku.rikka.app/guide/setup/), open CopyOver, select automatic
+mode and grant the permission. It needs Shizuku 13 or newer. On Android 11 or newer you can
+start it with wireless debugging from the phone itself; you have to start it again after
+a restart. On Android 8–10 it usually needs a PC and ADB; Android 8–9 only supports the primary user.
+You can keep using your keyboard. If Shizuku stops, manual sending is still available.
+Authorizing Shizuku enables automatic sending if you haven't chosen a mode yet.
+An explicit choice to turn it off is preserved. Receiving from the PC is enabled by default.
+
+Turning the mode on takes the current content as the baseline, without sending it. New text copies
+can be up to 256 KiB UTF-8; images up to 32 MiB, if their provider allows reading them as
+shell. Documents still use Send file or Share. With no connection, only the latest copy waiting to be
+sent is kept. The local history is separate from that queue. A copy received from the PC isn't sent back.
+Switching to Manual or turning it off drops pending sends; an HTTP send that already started may finish.
+
+Automatic receiving from Windows doesn't depend on this choice. **Turn off** in the notification
+stops both automatic directions. The iPhone Shortcuts keep working the same.
+
+The Shizuku helper only reads the clipboard: it doesn't get the PC's key and doesn't open connections.
+The app still does the transfers through Rust. Shell reading, image providers,
+the lock screen and One UI's battery saver still need testing on a real phone.
+
+## Version 0.7.0
+
+The app was organized into **Clipboard**, **Files**, **PCs** and **Settings**.
+
+- **Local history:** text and images that CopyOver sends, receives or detects with Shizuku. Copy,
+  pin, unpin, delete, and clear recent items while keeping pinned ones. Up to 100 recent items for
+  7 days, 20 pinned and 128 MiB of images; texts up to 131072 characters. Content
+  Android marks as sensitive isn't saved. It can be turned off in Settings without deleting what's saved.
+- **Separate statuses:** PC → Android and Android → PC, time of the last identity check,
+  last real delivery and errors. Shizuku authorization is shown apart from a verified connection.
+- **Transfers:** bytes, size and speed, cancellation and a notification while they run.
+  The operation keeps going when the screen rotates or turns off. If the process is killed it shows as
+  interrupted, and incomplete downloads are cleaned up on the next launch. Cancelling doesn't undo what was already received.
+- **Several PCs:** existing encrypted links are kept; pick an active one, rename
+  and forget from PCs. When sharing from another app, the target is chosen explicitly.
+- **Shizuku:** steps and checks inside Settings, with shortcuts to its app and to developer options.
+  You still have to start it and grant permission; your keyboard isn't changed.
+- **Files from the PC:** an offer is announced and you're asked to accept before downloading. It keeps
+  the name and allows Save as, Share or Open. It needs the server from this version; offers
+  use the linked PC and its key, with no guest tokens. Files are written to disk in chunks,
+  with no fixed size cap, and their SHA-256 is checked before they count as received.
+
+History lives in private storage excluded from backups. Images are
+duplicated into that storage so they don't depend on a transfer's cache. Received files
+stay in the private cache; keep a permanent copy with Save as. Up to
+20 received files are kept. Battery saver, starting after a restart, permissions and image
+providers need checking on your phone; the instrumentation tests have only been built here.
+
+## Data and limits
+
+- It uses the same API as the iPhone Shortcuts: `/send`, `/receive`, `/ping` and the `X-Key` header.
+- Files use the authenticated routes `/android/transferencias` and `/android/ofertas`, with no fixed size cap. Both the PC and Android need updating. Both need free space; Android prepares a private copy of the file before sending it and keeps downloads in its cache. Save as needs room for a second copy.
+- Dropped connections are retried for 90 seconds, resuming from the partial file's offset. Resuming only covers the operation in progress: restarting the PC or killing the app means starting over. Cancelling drops the pending partial file and doesn't undo files already completed.
+- Text up to **4 MiB** per operation; the system may impose a lower limit when copying. Normal images up to 32 MiB keep the earlier clipboard path so they can be pasted as images on Windows. Larger images travel as files. The clipboard and APK installer limits are kept separate from file transfers.
+- File URIs must be reachable through `content://`. If an app doesn't grant clipboard access to an image, use its Share menu.
+- If files are shared, the files are sent; an extra text message isn't mixed into the same send.
+- `.txt` files shared from Android are sent as files so they're saved on Windows. The Shortcuts keep their `text/plain` to clipboard text conversion. A small image is copied as an image; large files are saved in the configured receive folder.
+- Received files stay in the private cache to save or share; up to 20 received files are kept. Android may also free that cache. **Save as…** creates a permanent copy in the chosen location.
+- The PC's key and CA are encrypted with Android Keystore, excluded from backups and never logged. With a PC linked using this version, transfers go over HTTPS pinned to that PC's CA; older links stay on **unencrypted** HTTP, like the Shortcuts. Don't expose the port to the internet.
+- Automatic receiving keeps a connection waiting. The connection status on the main screen reflects the last manual check; the automatic notification shows its own status. After an error, the service looks for the PC again.
+
+## Testing
+
+```powershell
+python -m unittest discover -s tests -v
+cargo test --manifest-path android/native/Cargo.toml --locked
+cargo clippy --manifest-path android/native/Cargo.toml --all-targets --locked -- -D warnings
+./android/build.ps1 -Sdk C:\Android
+```
+
+The Python tests replace the clipboard and the dialogs so your data isn't touched and no windows open. The Rust tests use local servers, including the real Python server with simulated accept and reject. Wi-Fi discovery, the real dialog and the Android actions need checking on a phone or emulator.
+
+## Layout
+
+| Path | Purpose |
+|---|---|
+| `app/src/main/java/dev/puente/android/` | Interface, settings, permissions, clipboard and Android actions |
+| `native/src/lib.rs` | HTTP operations and authentication |
+| `native/src/multipart.rs` | Streaming file upload with Content-Length |
+| `native/src/response.rs` | Receiving and limits; safe file names |
+| `native/src/sync.rs` | Automatic receiving with a change cursor |
+| `native/src/tls.rs` | HTTPS with rustls and the PC's CA pinned when linking |
+| `app/src/main/java/dev/puente/android/AutoReceiveService.kt` | Service that writes the clipboard without reading Android's |
+| `native/src/android_jni.rs` | JNI entry point for Kotlin |
+| `app/src/main/java/dev/puente/android/PcDiscovery.kt` | Identity-based discovery with Android NSD |
+| `app/src/main/java/dev/puente/android/PairingCode.kt` | Validation of the PC's local QR |
+| `build.ps1` / `build-native.sh` | NDK cross-compilation and 16 KiB alignment |

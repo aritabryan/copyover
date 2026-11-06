@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="send" android:enabled="true" android:icon="@drawable/ic_shortcut_send"
+        android:shortcutShortLabel="@string/action_send_copied">
+        <intent android:action="dev.puente.android.SEND_CLIPBOARD" android:targetPackage="@string/copyover_package"
+            android:targetClass="dev.puente.android.QuickActionActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="receive" android:enabled="true" android:icon="@drawable/ic_shortcut_receive"
+        android:shortcutShortLabel="@string/action_get_from_pc">
+        <intent android:action="dev.puente.android.RECEIVE_CLIPBOARD" android:targetPackage="@string/copyover_package"
+            android:targetClass="dev.puente.android.QuickActionActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="attach" android:enabled="true" android:icon="@drawable/ic_shortcut_attach"
+        android:shortcutShortLabel="@string/action_send_file">
+        <intent android:action="dev.puente.android.ATTACH_FILES" android:targetPackage="@string/copyover_package"
+            android:targetClass="dev.puente.android.QuickActionActivity" />
+    </shortcut>
+</shortcuts>

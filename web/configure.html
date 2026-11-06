@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CopyOver - Link this device</title>
+<style>
+  body { background:#0a0a0b; color:#f8fafc; font-family:-apple-system,BlinkMacSystemFont,sans-serif; padding:24px 16px; margin:0; }
+  .box { max-width:420px; margin:0 auto; background:#121214; border:1px solid rgba(255,255,255,0.08); border-radius:20px; padding:20px; }
+  h2 { margin:0 0 4px; font-size:20px; }
+  p { color:#94a3b8; font-size:13.5px; line-height:1.45; margin:14px 0 4px; }
+  .row { background:rgba(0,0,0,0.4); padding:10px 12px; border-radius:10px; margin:4px 0; font-family:monospace; font-size:13px; word-break:break-all; }
+  .key { border:1px solid rgba(255, 255, 255, 0.225); color:#fafafa; font-weight:600; }
+  button { width:100%; margin-top:8px; padding:10px; border:0; border-radius:10px; background:#fafafa; color:#0b0b0c; font-weight:700; font-size:14px; }
+  .main { display:block; text-align:center; text-decoration:none; margin-top:16px; padding:13px; border-radius:12px; background:#fafafa; color:#0b0b0c; font-weight:700; font-size:15px; }
+  .small { font-size:12.5px; text-align:center; }
+  .small a { color:#fafafa; }
+  details { margin-top:18px; border-top:1px solid rgba(255,255,255,0.08); padding-top:12px; }
+  summary { color:#cbd5e1; font-size:13.5px; cursor:pointer; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <h2>Link this {{TYPE}} with {{PC}}</h2>
+    <p>Tap the button to finish linking it.</p>
+    <a class="main" href="{{SHORTCUT_LINK}}">Save to Shortcuts</a>
+    <p class="small">Don’t have the Link PC shortcut? <a href="https://www.icloud.com/shortcuts/e234def0f4144db8b47a1f8db2ce1cdf">Install it</a> and tap the button again.</p>
+    <details>
+      <summary>Set it up by hand</summary>
+      <p>This key belongs only to this device; it goes in the header <code>X-Key</code>:</p>
+      <div class="row key" id="key">{{KEY}}</div>
+      <button onclick="copyKey(this)">Copy key</button>
+      <p>Send PC (POST method):</p>
+      <div class="row">{{BASE}}/send</div>
+      <p>Receive PC (GET method):</p>
+      <div class="row">{{BASE}}/receive</div>
+      <p>For the PC to show the device’s name, add <code>?device=</code> and the name (with <em>URL Encode</em>) at the end of each URL.</p>
+    </details>
+  </div>
+<script>
+  // Safari on iPad identifies as a Mac and the PC registers it as a «device»: tell the user from here.
+  if (/iPad/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) {
+    fetch('/device/type', { method: 'POST', headers: { 'X-Key': document.getElementById('key').textContent }, body: 'ipad' })
+      .catch(() => {});
+  }
+  // This page opens over http on the local network, where navigator.clipboard doesn't exist.
+  function copyKey(button) {
+    const key = document.getElementById('key').textContent;
+    const ready = () => { button.textContent = 'Key copied'; };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(key).then(ready, () => copyBySelecting(key, button, ready));
+    } else {
+      copyBySelecting(key, button, ready);
+    }
+  }
+  function copyBySelecting(text, button, ready) {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    area.setSelectionRange(0, text.length);
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    area.remove();
+    if (ok) { ready(); return; }
+    // No way to copy automatically: the key is left selected to copy by hand.
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById('key'));
+    const selected = window.getSelection();
+    selected.removeAllRanges();
+    selected.addRange(range);
+    button.textContent = 'Key selected: copy it yourself';
+  }
+</script>
+</body>
+</html>

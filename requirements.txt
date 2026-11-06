@@ -1,0 +1,7 @@
+pillow
+pillow-heif
+zeroconf
+pystray
+qrcode[pil]>=8.2,<9
+cryptography>=43
+pywebview>=5

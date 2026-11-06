@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{THEME}}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CopyOver</title>
+<link rel="manifest" href="/manifest.json?v=20261028c2">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20261028c2">
+<link rel="icon" type="image/png" sizes="192x192" href="/app/logo-192.png?v=20261028c2">
+<link rel="icon" type="image/png" sizes="512x512" href="/app/logo-512.png?v=20261028c2">
+<link rel="apple-touch-icon" href="/app/logo-192.png?v=20261028c2">
+<link rel="shortcut icon" href="/favicon.ico?v=20261028c2">
+<meta name="theme-color" content="#0a0a0b">
+<style>
+<!-- include: panel.css --></style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg width="22" height="22" viewBox="3 3 58 58" fill="currentColor" aria-hidden="true"><path d="M37.92 15A6 6 0 0 0 32 10H16a6 6 0 0 0-6 6v24a6 6 0 0 0 6 6h4.5" fill="none" stroke="currentColor" stroke-width="3.2"/><rect x="18" y="5" width="12" height="7.5" rx="2.5"/><path d="M30 21v2a4 4 0 0 0 4 4h10a4 4 0 0 0 4-4v-2a6 6 0 0 1 6 6v26a6 6 0 0 1-6 6H30a6 6 0 0 1-6-6V27a6 6 0 0 1 6-6z"/><rect x="32.5" y="17.5" width="13" height="7" rx="2.5"/></svg>
+      </div>
+      <div>
+        <div class="brand-title">CopyOver</div>
+        <div class="brand-sub">
+          <span class="status-dot" id="net-dot"></span>
+          <span id="net-label">Connected on your local network</span>
+          <a class="new-version" id="new-version" href="#" target="_blank" rel="noopener" onclick="installNewVersion(event)" hidden></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <button class="btn" id="btn-wfd-top" onclick="openWifiDirectModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+        <span id="wfd-top-text">Wi-Fi Direct</span>
+      </button>
+
+      <button class="btn" onclick="openConnectPhoneModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="2" width="14" height="20" rx="3"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        Link phone
+      </button>
+
+      <button class="btn btn-icon" title="Settings" onclick="openSettingsModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="main-grid">
+
+    <section class="card welcome" id="welcome" hidden>
+      <!-- A copy goes from the phone to the PC and comes back, in a 6 s loop (SMIL, paused with reduced motion) -->
+      <div class="welcome-art" aria-hidden="true">
+        <svg id="welcome-svg" viewBox="0 0 240 150">
+          <g>
+            <rect class="bv-frame" x="16" y="30" width="48" height="88" rx="10"/>
+            <rect class="bv-screen" x="21" y="40" width="38" height="68" rx="4"/>
+            <rect class="bv-shine" x="21" y="40" width="38" height="68" rx="4">
+              <animate attributeName="opacity" dur="6s" repeatCount="indefinite"
+                       values="0;0;0.35;0" keyTimes="0;0.86;0.92;1"/>
+            </rect>
+            <rect class="bv-detail" x="33" y="34" width="14" height="2.5" rx="1.25"/>
+          </g>
+          <g>
+            <rect class="bv-frame" x="146" y="34" width="80" height="56" rx="7"/>
+            <rect class="bv-screen" x="151" y="39" width="70" height="46" rx="3"/>
+            <rect class="bv-shine" x="151" y="39" width="70" height="46" rx="3">
+              <animate attributeName="opacity" dur="6s" repeatCount="indefinite"
+                       values="0;0;0.35;0;0" keyTimes="0;0.4;0.46;0.6;1"/>
+            </rect>
+            <rect class="bv-detail" x="178" y="90" width="16" height="12"/>
+            <rect class="bv-detail" x="166" y="102" width="40" height="4" rx="2"/>
+          </g>
+          <path class="bv-path" id="bv-ida" d="M60 62 C88 8, 128 6, 158 50"/>
+          <path class="bv-path" id="bv-vuelta" d="M160 76 C130 132, 92 134, 60 88"/>
+          <g class="bv-copy" opacity="0">
+            <rect x="-9" y="-11" width="18" height="22" rx="4"/>
+            <rect x="-4.5" y="-13" width="9" height="5" rx="2"/>
+            <animateMotion dur="6s" repeatCount="indefinite" calcMode="linear"
+                           keyPoints="0;0;1;1" keyTimes="0;0.08;0.42;1"><mpath href="#bv-ida"/></animateMotion>
+            <animate attributeName="opacity" dur="6s" repeatCount="indefinite"
+                     values="0;1;1;0;0" keyTimes="0;0.08;0.4;0.46;1"/>
+          </g>
+          <g class="bv-copy" opacity="0">
+            <rect x="-9" y="-11" width="18" height="22" rx="4"/>
+            <rect x="-4.5" y="-13" width="9" height="5" rx="2"/>
+            <animateMotion dur="6s" repeatCount="indefinite" calcMode="linear"
+                           keyPoints="0;0;1;1" keyTimes="0;0.54;0.88;1"><mpath href="#bv-vuelta"/></animateMotion>
+            <animate attributeName="opacity" dur="6s" repeatCount="indefinite"
+                     values="0;0;1;1;0;0" keyTimes="0;0.5;0.54;0.86;0.92;1"/>
+          </g>
+        </svg>
+      </div>
+      <div class="welcome-body">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Welcome to CopyOver</div>
+            <div class="card-subtitle">Your clipboard on all your devices, over your own network. Three steps and you’re done.</div>
+          </div>
+        </div>
+        <ol class="welcome-steps">
+          <li><strong>Install the shortcuts or the app.</strong> On iPhone and iPad, the iOS shortcuts; on Android, the APK from the latest release.</li>
+          <li><strong>Link your phone.</strong> Tap <em>Link phone</em> at the top and scan the QR code with the camera.</li>
+          <li><strong>Copy and paste.</strong> Copy on one device and paste on the other: text, photos and files.</li>
+        </ol>
+        <div class="welcome-actions">
+          <button class="btn btn-primary" type="button" onclick="openConnectPhoneModal()">Link phone</button>
+          <button class="btn" type="button" onclick="closeWelcome()">Got it</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Only shows when something keeps the phone from reaching the PC -->
+    <section class="card diagnostics" id="diagnostics" hidden>
+      <div class="card-header">
+        <div>
+          <div class="card-title">Something may block the connection</div>
+          <div class="card-subtitle">Checked on this PC when the panel opened.</div>
+        </div>
+        <button class="btn" type="button" onclick="loadDiagnostics(this)">Check again</button>
+      </div>
+      <div class="diagnostics-list" id="diagnostics-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Devices</div>
+          <div class="card-subtitle">Choose where to send: your iPhone, iPad or another PC on this network</div>
+        </div>
+        <button class="btn" style="padding:7px 12px; font-size:12px;" onclick="scanNow(this)">Find PCs</button>
+      </div>
+
+      <div class="radar" id="radar">
+        <div class="radar-ring" style="width:100%; height:100%;"></div>
+        <div class="radar-ring" style="width:68%; height:68%;"></div>
+        <div class="radar-ring" style="width:36%; height:36%;"></div>
+        <div class="radar-sweep"></div>
+        <div class="radar-pulse"></div>
+        <div class="radar-pulse p2"></div>
+        <div class="radar-center" id="radar-center-icon" title="This PC">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+        </div>
+        <div id="radar-nodos"></div>
+      </div>
+      <div class="radar-state" id="radar-state"></div>
+
+      <div class="devices-list" id="devices-container"></div>
+    </section>
+
+    <div style="display:flex; flex-direction:column; gap:20px;">
+
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Send from this PC</div>
+            <div class="card-subtitle" id="target-subtitle">Choose a destination from the list.</div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="dropzone" id="pc-dropzone" onclick="chooseNativeFiles()">
+            <div class="dropzone-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div style="font-size:15px; font-weight:600;" id="drop-title">Choose files or drag them here</div>
+            <div style="font-size:12.5px; color:var(--sub);" id="drop-sub">
+              Up to 10 GB
+            </div>
+          </div>
+          <div style="text-align:right;"><button class="btn-link" type="button" onclick="chooseNativeFolder()">Send a folder (as a ZIP)</button></div>
+        </div>
+
+        <!-- Stays on the PC's clipboard; the phone fetches it with «Receive PC» -->
+        <form style="display:flex; gap:8px;" onsubmit="event.preventDefault(); leaveTextReady(this)">
+          <input type="text" class="input-text" id="phone-text" maxlength="20000" autocomplete="off" placeholder="Text for the phone">
+          <button class="btn" type="submit" style="white-space:nowrap;">Send to phone</button>
+        </form>
+
+        <div class="notice-box" id="delivery-notice">
+          <div id="delivery-notice-text" style="flex:1;"></div>
+          <button class="btn" id="delivery-notice-btn" style="padding:7px 12px; font-size:12px; flex-shrink:0;" onclick="openConnectPhoneModal('qr')">Open web app</button>
+        </div>
+
+        <div class="transfer-bar" id="transfer-box">
+          <div style="display:flex; justify-content:space-between; font-size:12.5px; font-weight:600;">
+            <span id="transfer-name">Transferring...</span>
+            <span id="transfer-pct">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="transfer-fill"></div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="btn-send-main" style="width:100%; padding:13px; display:none;" onclick="runMainSend(this)">
+          Choose files
+        </button>
+
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <div style="min-width:0;">
+            <div class="card-title">Sent and received</div>
+            <div class="card-subtitle" style="display:flex; flex-wrap:wrap; column-gap:6px; row-gap:2px; align-items:baseline; min-width:0;">
+              <span style="white-space:nowrap;">Received items are saved in</span>
+              <span style="display:inline-flex; gap:8px; align-items:baseline; min-width:0; max-width:100%;">
+                <strong id="hist-folder" style="color:var(--text); font-weight:600; user-select:text; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;">…</strong>
+                <button class="btn-link" type="button" style="white-space:nowrap;" onclick="changeDownloadsFolder()">Change folder</button>
+              </span>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn" style="padding:7px 10px; font-size:12px; display:inline-flex; align-items:center; gap:5px;" onclick="cleanHistory(this)" title="Clear the list (pinned items and files stay)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              <span>Clear list</span>
+            </button>
+            <button class="btn" style="padding:7px 12px; font-size:12px; display:inline-flex; align-items:center; gap:6px;" onclick="openDownloadsFolder()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              Open folder
+            </button>
+          </div>
+        </div>
+        <div class="history-search" id="hist-search-box" hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" class="input-text" id="hist-search" autocomplete="off" spellcheck="false" placeholder="Search by name, text or device" aria-label="Search the history" oninput="paintHistory()" onkeydown="if (event.key === 'Escape' && this.value) { event.stopPropagation(); this.value = ''; paintHistory(); }">
+        </div>
+        <div class="history-list" id="history-container">
+          <div class="history-empty">Nothing received yet</div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <div class="modal-backdrop" id="modal-phone" onmousedown="this.atBottom=event.target===this" onclick="if(event.target===this && this.atBottom) closeModals()">
+    <div class="modal" style="max-width:520px;">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Link phone</div>
+          <div class="card-subtitle" style="margin-top:2px;">On the same network as this PC</div>
+        </div>
+        <button class="btn" style="padding:6px 10px;" onclick="closeModals()">Close</button>
+      </div>
+
+      <div class="segmented" role="tablist" aria-label="How to link">
+        <button role="tab" id="tab-btn-shortcut" aria-selected="true" aria-controls="panel-phone-shortcut" onclick="changePhoneTab('shortcut')">iPhone or iPad</button>
+        <button role="tab" id="tab-btn-android" aria-selected="false" aria-controls="panel-phone-android" onclick="changePhoneTab('android')">Android</button>
+        <button role="tab" id="tab-btn-qr" aria-selected="false" aria-controls="panel-phone-qr" onclick="changePhoneTab('qr')">Guests</button>
+      </div>
+      <!-- Only the open tab takes space: the modal fits each tab -->
+      <div class="phone-panels">
+
+      <div id="panel-phone-android" role="tabpanel" style="display:none; flex-direction:column; gap:16px; visibility:hidden;" inert>
+        <ol class="steps">
+          <li>
+            <div>
+              <div class="step-title">Install CopyOver on the phone</div>
+              <div class="step-text">Scan this code with the phone’s camera: the APK downloads from this PC.</div>
+              <div class="qr-box" id="qr-apk-box">
+                <div id="qr-apk-svg" aria-live="polite">Generating code…</div>
+                <div class="qr-footer">
+                  <span id="qr-apk-state">Valid for 30 minutes</span>
+                  <button class="btn" type="button" onclick="loadApkQr()">New code</button>
+                </div>
+              </div>
+              <div class="step-text">Open it and tap «Install». The first time, Android asks you to allow apps from that source. It’s also in the <a href="https://github.com/aritabryan/copyover/releases/latest" target="_blank" rel="noopener">latest release</a>.</div>
+            </div>
+          </li>
+          <li>
+            <div>
+              <div class="step-title">In the app, open Devices and tap this PC</div>
+              <div class="step-text">It shows up as <strong id="android-pc-name">of this PC</strong>.</div>
+            </div>
+          </li>
+          <li>
+            <div>
+              <div class="step-title">Accept on the PC if the code matches</div>
+              <div class="step-text">It remembers it after that, even if the IP changes.</div>
+            </div>
+          </li>
+        </ol>
+      </div>
+
+      <div id="panel-phone-shortcut" role="tabpanel" style="display:flex; flex-direction:column; gap:16px;">
+        <ol class="steps">
+          <li>
+            <div>
+              <div class="step-title">Install the three shortcuts on the iPhone</div>
+              <div class="step-text">Click each shortcut to see its code, scan it with the iPhone camera and tap “Add Shortcut”.</div>
+              <div class="shortcut-links">
+                <button type="button" onclick="showShortcutQr(this)"><span class="shortcut-qr" data-qr="https://www.icloud.com/shortcuts/e234def0f4144db8b47a1f8db2ce1cdf" hidden></span>Link PC</button>
+                <button type="button" onclick="showShortcutQr(this)"><span class="shortcut-qr" data-qr="https://www.icloud.com/shortcuts/8773928b15af4455a1caa964e0ffe018" hidden></span>Send PC</button>
+                <button type="button" onclick="showShortcutQr(this)"><span class="shortcut-qr" data-qr="https://www.icloud.com/shortcuts/4f9e695b686b4a0aae42bcf2d2caebb5" hidden></span>Receive PC</button>
+              </div>
+            </div>
+          </li>
+          <li>
+            <div>
+              <div class="step-title">Scan this code with the camera</div>
+              <div class="step-text">It works once and gives that phone <strong>its own key</strong>.</div>
+              <div class="qr-box" id="qr-shortcut-box">
+                <div id="qr-shortcut-svg" aria-live="polite">Generating code…</div>
+                <div class="qr-footer">
+                  <span id="qr-shortcut-state">Valid for 5 minutes</span>
+                  <button class="btn" type="button" onclick="loadShortcutQr()">New code</button>
+                </div>
+              </div>
+            </div>
+          </li>
+          <li>
+            <div>
+              <div class="step-title">Tap “Save to Shortcuts” on the page that opens</div>
+              <div class="step-text">Send PC and Receive PC are ready.</div>
+            </div>
+          </li>
+        </ol>
+
+        <details class="manual">
+          <summary>Set up by hand with the PC’s shared key</summary>
+          <div class="kv-list">
+            <div class="kv">
+              <div>
+                <div class="kv-k">Send PC</div>
+                <div class="kv-v"><span class="method">POST</span><span id="modal-shortcut-send-url">http://…</span></div>
+              </div>
+              <button class="btn" type="button" onclick="copyText(document.getElementById('modal-shortcut-send-url').textContent, 'URL copied')">Copy</button>
+            </div>
+            <div class="kv">
+              <div>
+                <div class="kv-k">Receive PC</div>
+                <div class="kv-v"><span class="method">GET</span><span id="modal-shortcut-fetch-url">http://…</span></div>
+              </div>
+              <button class="btn" type="button" onclick="copyText(document.getElementById('modal-shortcut-fetch-url').textContent, 'URL copied')">Copy</button>
+            </div>
+            <div class="kv">
+              <div>
+                <div class="kv-k">X-Key header</div>
+                <div class="kv-v key" id="modal-shortcut-key">…</div>
+              </div>
+              <button class="btn" type="button" onclick="copyText(document.getElementById('modal-shortcut-key').textContent, 'Key copied')">Copy</button>
+            </div>
+            <div class="kv">
+              <div>
+                <div class="kv-k">Device name (optional)</div>
+                <div class="kv-v">At the end of each URL: <code>?device=</code> and “Device Name” with <em>URL Encode</em></div>
+              </div>
+              <button class="btn" type="button" onclick="copyText('?device=', 'Copied')">Copy</button>
+            </div>
+            <button class="btn" type="button" style="justify-content:center;" onclick="copyShortcutSummary()">Copy the full guide</button>
+          </div>
+        </details>
+      </div>
+
+      <div id="panel-phone-qr" role="tabpanel" style="display:none; flex-direction:column; gap:12px; visibility:hidden;" inert>
+        <p class="card-subtitle">
+          Scan it with any phone’s camera. While that page is open, <strong style="color:var(--text);">whatever you send from the PC reaches it live</strong>, up to 10 GB.
+        </p>
+        <div class="qr-box">
+          <div id="qr-mobile-svg">Generating code…</div>
+          <div style="font-size:12.5px; color:var(--accent-bright); font-weight:650; user-select:text;" id="qr-mobile-url"></div>
+          <div class="card-subtitle" style="font-size:12px;" id="qr-mobile-expires"></div>
+        </div>
+        <div id="active-guests" class="card-subtitle" style="font-size:12.5px;"></div>
+        <p class="card-subtitle">
+          In Safari, <em>Share → Add to Home Screen</em> keeps CopyOver around like any other app.
+        </p>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <span class="card-subtitle" style="font-size:12px; flex:1 1 200px;">Each link lasts 30 minutes and is renewed while its page stays open.</span>
+          <button class="btn" type="button" id="btn-cut-guests" onclick="cutGuests(this)">Cut off guest access</button>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modal-wfd" onmousedown="this.atBottom=event.target===this" onclick="if(event.target===this && this.atBottom) closeModals()">
+    <div class="modal">
+      <div class="card-header">
+        <div class="card-title">Wi-Fi Direct connection (no router)</div>
+        <button class="btn" style="padding:6px 10px;" onclick="closeModals()">Close</button>
+      </div>
+      <p class="card-subtitle">
+        No router or internet needed: the laptop creates a direct network with the phone or another PC, and keeps your Wi-Fi.
+      </p>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 16px; border-radius:14px; background:rgba(var(--ink), 0.04); border:1px solid var(--border);">
+        <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; overflow-wrap:anywhere;">
+          <div style="font-size:14px; font-weight:700;" id="wfd-status-title">Status: Off</div>
+          <div style="font-size:12px; color:var(--sub); line-height:1.45;" id="wfd-status-sub">Turn it on to create the direct signal</div>
+        </div>
+        <button class="btn btn-primary" style="flex-shrink:0; white-space:nowrap;" id="btn-wfd-toggle" onclick="toggleWifiDirect(this)">Turn on Wi-Fi Direct</button>
+      </div>
+
+      <!-- Name and password can only change while Wi-Fi Direct is off. -->
+      <div id="wfd-network-locked" style="display:none; font-size:12px; color:var(--sub);">Turn off Wi-Fi Direct to change the name or the password.</div>
+      <div id="wfd-network-config" style="display:flex; flex-direction:column; gap:14px;">
+        <form style="display:flex; flex-direction:column; gap:8px;" onsubmit="event.preventDefault(); saveWfdNetworkName(this.querySelector('button'))">
+          <label for="wfd-suffix" style="font-size:12px; font-weight:600; color:var(--sub);">Network name</label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="display:flex; align-items:center; flex:1; min-width:0; border:1px solid var(--border); border-radius:10px; padding:0 0 0 12px; background:rgba(255,255,255,0.03);">
+              <span style="font-size:14px; font-weight:600; flex-shrink:0;" id="wfd-prefix">CopyOver-</span>
+              <input type="text" class="input-text" id="wfd-suffix" maxlength="20" autocomplete="off" spellcheck="false" aria-label="Wi-Fi Direct network name" style="flex:1; min-width:0; width:auto; border:none; background:transparent; padding-left:2px;">
+            </div>
+            <button class="btn" type="submit" style="flex-shrink:0; white-space:nowrap;">Save name</button>
+          </div>
+          <div style="font-size:11.5px; color:var(--sub); line-height:1.45;">Only letters, numbers and hyphens. If you change the name, devices that already saved the network have to scan the QR again.</div>
+        </form>
+        <div style="display:flex; align-items:center; gap:16px; padding-top:14px; border-top:1px solid var(--border);">
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:12px; font-weight:600; color:var(--sub);">Password</div>
+            <div style="font-size:11.5px; color:var(--sub); line-height:1.45; margin-top:2px;">New password removes the devices that had it saved from the network.</div>
+          </div>
+          <button class="btn" type="button" onclick="changeWfdKey(this)" style="flex-shrink:0; white-space:nowrap;">New password</button>
+        </div>
+      </div>
+
+      <div id="wfd-qr-section" style="display:none; flex-direction:column; gap:12px;">
+        <div class="steps-grid">
+          <div class="qr-box">
+            <div style="font-size:12px; font-weight:700; color:var(--accent-bright);">STEP 1: Join the PC’s Wi-Fi</div>
+            <div id="wfd-qr-wifi"></div>
+            <div style="font-size:11.5px; color:var(--sub);" id="wfd-cred-txt"></div>
+          </div>
+          <div class="qr-box">
+            <div style="font-size:12px; font-weight:700; color:var(--blue);">STEP 2: Open the live app</div>
+            <div id="wfd-qr-app"></div>
+            <div style="font-size:11.5px; color:var(--sub);">Or use your iOS shortcut directly</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modal-settings" onmousedown="this.atBottom=event.target===this" onclick="if(event.target===this && this.atBottom) closeModals()">
+    <div class="modal">
+      <div class="card-header">
+        <div class="card-title">CopyOver settings</div>
+        <button class="btn" style="padding:6px 10px;" onclick="closeModals()">Close</button>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div>
+          <div style="font-size:12px; color:var(--sub); margin-bottom:4px;">Name of this computer (This PC on the network)</div>
+          <input type="text" class="input-text" id="cfg-pc-name" style="width:100%;">
+        </div>
+        <div>
+          <div style="font-size:12px; color:var(--sub); margin-bottom:4px;">Folder where received files are saved</div>
+          <div style="display:flex; gap:8px;">
+            <input type="text" class="input-text" id="cfg-folder" readonly style="flex:1;">
+            <button class="btn" onclick="changeDownloadsFolder()">Change folder</button>
+            <button class="btn" id="btn-reset-folder" onclick="resetDownloadsFolder()" title="Back to the Documents folder" style="display:none;">Reset</button>
+            <button class="btn" onclick="openDownloadsFolder('descargas')" title="Open in File Explorer">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            </button>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px; color:var(--sub); margin-bottom:4px;">Language</div>
+          <select class="input-text" id="cfg-language" style="width:100%;">
+            <option value="en">English</option>
+            <option value="es">Español</option>
+          </select>
+          <div class="card-subtitle" style="margin-top:6px; font-size:12px;">The tray menu changes when CopyOver restarts.</div>
+        </div>
+        <div>
+          <div style="font-size:12px; color:var(--sub); margin-bottom:4px;">Appearance</div>
+          <select class="input-text" id="cfg-theme" style="width:100%;" onchange="document.documentElement.dataset.theme = this.value">
+            <option value="system">Same as the system</option>
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:12px; color:var(--sub); margin-bottom:4px;">Notifications</div>
+          <select class="input-text" id="cfg-notices" style="width:100%;">
+            <option value="1">Show a notification when something arrives</option>
+            <option value="0">Don’t show notifications</option>
+          </select>
+          <div class="card-subtitle" style="margin-top:6px; font-size:12px;">System notifications when something arrives from the phone or another PC. Received items are saved either way.</div>
+          <label style="display:flex; align-items:center; gap:8px; margin-top:10px;"><input id="cfg-clipboard-notices" type="checkbox">Also notify when copying text or images</label>
+        </div>
+        <div>
+          <div style="font-size:12px; color:var(--sub); margin-bottom:4px;">Keep received items</div>
+          <select class="input-text" id="cfg-keep" style="width:100%;">
+            <option value="0">Forever (delete nothing)</option>
+            <option value="1">1 day</option>
+            <option value="7">7 days</option>
+            <option value="30">30 days</option>
+          </select>
+          <div class="card-subtitle" style="margin-top:6px; font-size:12px;">Moves older received items in CopyOver’s folders to the Recycle Bin. Anything you moved elsewhere stays put.</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <div class="card-subtitle" style="margin-bottom:4px;">The PC’s shared key; phones linked by QR code have their own.</div>
+          <div class="kv">
+            <div>
+              <div class="kv-k">X-Key header</div>
+              <div class="kv-v key" id="cfg-key"></div>
+            </div>
+            <button class="btn" type="button" onclick="copyText(document.getElementById('cfg-key').textContent, 'Key copied')">Copy</button>
+          </div>
+          <button class="btn" type="button" id="btn-change-key" style="align-self:flex-start;" onclick="changeCommonKey(this)">Change the shared key</button>
+          <div class="kv">
+            <div>
+              <div class="kv-k">Network address</div>
+              <div class="kv-v"><span id="cfg-mdns"></span> <span style="color:var(--muted); font-weight:400;">·</span> <span id="cfg-ip"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div class="changes-notice" id="changes-notice" role="alert">
+          <span>You have unsaved changes.</span>
+          <div>
+            <button class="btn" type="button" onclick="closeModals(true)">Discard</button>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="btn-save-settings" onclick="saveSettings(this)">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Own dialog instead of the browser's prompt() and confirm() -->
+  <div class="modal-backdrop" id="modal-dialog" onmousedown="this.atBottom=event.target===this" onclick="if(event.target===this && this.atBottom) resolveDialog(null)">
+    <form class="modal" style="max-width:400px; gap:14px;" onsubmit="event.preventDefault(); resolveDialog(true)">
+      <div class="card-title" id="dialog-title"></div>
+      <p class="card-subtitle" id="dialog-text" style="display:none;"></p>
+      <input type="text" class="input-text" id="dialog-value" maxlength="60" autocomplete="off" style="display:none;">
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button class="btn" type="button" onclick="resolveDialog(null)">Cancel</button>
+        <button class="btn btn-primary" type="submit" id="dialog-ok">OK</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="modal-backdrop" id="modal-qr-shortcut" onmousedown="this.atBottom=event.target===this" onclick="if(event.target===this && this.atBottom) closeShortcutQr()">
+    <div class="modal" style="max-width:360px;">
+      <div class="card-header">
+        <div>
+          <div class="card-title" id="qr-shortcut-name"></div>
+          <div class="card-subtitle" style="margin-top:2px;">Scan it with the iPhone camera</div>
+        </div>
+        <button class="btn" style="padding:6px 10px;" onclick="closeShortcutQr()">Close</button>
+      </div>
+      <div class="qr-box">
+        <a id="qr-shortcut-link" target="_blank" rel="noopener" title="Open the link on this PC"></a>
+        <div class="qr-footer">Click the code to open the link on this PC.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+<!-- include: panel.js --></script>
+</body>
+</html>
