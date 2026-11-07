@@ -36,7 +36,7 @@
     return String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
   }
 
-  const VERSION_LOCAL = 2026110505;
+  const VERSION_LOCAL = 2026110601;
   const SHORTCUT_LIMIT_BYTES = 500 * 1024 * 1024;
   let currentState = {};
   let openSelector = false;
@@ -336,11 +336,13 @@ Device name (optional): at the end of each URL, ${'?device='} and the “Device 
       const isDesktop = eq.chassis === 'desktop';
       items.push({
         id: eq.ip,
+        peerId: eq.id || '',
+        linked: eq.linked === true,
         ip: eq.ip,
         name: eq.name || eq.ip,
         icon: isDesktop ? ICONS.desktop : ICONS.laptop,
         desc: isDesktop ? 'Desktop PC on this network' : 'Laptop on this network',
-        pill: isDesktop ? 'Desktop PC' : 'Laptop',
+        pill: eq.linked ? 'Linked' : (isDesktop ? 'Desktop PC' : 'Laptop'),
         live: true,
         isPc: true
       });
@@ -394,11 +396,29 @@ Device name (optional): at the end of each URL, ${'?device='} and the “Device 
           </div>
           <div class="device-actions">
             <span class="pill ${it.notice ? 'notice' : it.isOwn ? 'live' : ''}">${esc(it.pill)}</span>
+            ${it.isPc && !it.linked && it.peerId ? `<button class="btn" type="button" style="padding:6px 11px; font-size:12px;" data-id="${esc(it.peerId)}" onclick="event.stopPropagation(); linkPc(this)">Link</button>` : ''}
             <button class="btn" type="button" style="padding:6px 11px; font-size:12px;" data-i="${i}" onclick="event.stopPropagation(); sendToDevice(Number(this.dataset.i))">Send files…</button>
           </div>
         </div>
       `;
     }).join('');
+  }
+
+  async function linkPc(button) {
+    button.disabled = true;
+    try {
+      const response = await fetch('/app/link-pc', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: button.dataset.id })
+      });
+      const result = await response.json();
+      showToast(result.message || (result.ok ? 'Confirm the matching code on both PCs.' : 'Couldn’t link this PC. Try again.'));
+      await updateState();
+    } catch (error) {
+      showToast('Couldn’t link this PC. Try again.');
+    } finally {
+      button.disabled = false;
+    }
   }
 
   async function sendToDevice(i) {

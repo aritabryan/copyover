@@ -6,6 +6,10 @@ Rules for the translations:
 """
 
 ES = {
+    "This PC is no longer nearby. Search again.": "Esta PC ya no está cerca. Busca de nuevo.",
+    "Already linked": "Ya está vinculada",
+    "Confirm the matching code on both PCs.": "Confirma el mismo código en ambas PC.",
+    "Couldn’t link this PC. Try again.": "No se pudo vincular esta PC. Inténtalo de nuevo.",
     "Firewall permission updated. Try connecting again.": "Permiso del firewall actualizado. Intenta conectarte de nuevo.",
     "Couldn’t apply the firewall change. Accept the Windows prompt and try again.": "No se pudo cambiar el firewall. Acepta el aviso de Windows e inténtalo de nuevo.",
     "The firewall still blocks CopyOver. Check the Windows rule or your network policy.": "El firewall sigue bloqueando CopyOver. Revisa la regla de Windows o las restricciones de tu red.",

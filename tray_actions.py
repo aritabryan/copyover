@@ -126,9 +126,9 @@ def _connect_selected(cfg, pc, save, notify, own_ca='', improve=False):
 
 
 @_pc_operation
-def connect_pc(cfg, pcs, save, notify=None, own_ca=''):
+def connect_pc(cfg, pcs, save, notify=None, own_ca='', selected_pc=None):
     notify = notify or notice
-    pc = _choose_pc(linked_pcs.with_alias(cfg, pcs), notify, 'link')
+    pc = selected_pc or _choose_pc(linked_pcs.with_alias(cfg, pcs), notify, 'link')
     if pc and _connect_selected(cfg, pc, save, notify, own_ca, improve=True):
         notify(t('PC connected'), t('{name} is paired. You can now use Send to another PC.', name=pc['name']))
 

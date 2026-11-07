@@ -26,6 +26,7 @@ import linked_pcs
 import p2p
 import i18n
 import local_secret
+import tray_actions
 from i18n import t
 
 bridge = None  # set by bridge.py on import
@@ -155,11 +156,12 @@ class PanelPaths:
                                    for d in bridge._dedupe_apple_devices(list(bridge.STATE.get("apple_devices", {}).values()))],
             "guests": [{**i, "name": _visible_origin(i["name"])} for i in bridge.active_guests()],
             "last": f"{last[0]:%H:%M} -> {last[1]}" if last else None,
-            "pcs": bridge._dedupe_p2p_pcs(bridge.STATE.get("pcs", [])),
+            "pcs": [{**pc, "linked": bool(current_cfg.get("pcs", {}).get(pc.get("id")))}
+                    for pc in bridge._dedupe_p2p_pcs(bridge.STATE.get("pcs", []))],
             "show_window": show,
             "web_app": True,
-            "app_version": 2026110505,
-            "version_app": 2026110505,  # a panel left open from before this name reads it and reloads
+            "app_version": 2026110601,
+            "version_app": 2026110601,  # a panel left open from before this name reads it and reloads
             "pc_chassis": p2p.chassis_type(),
             "transfer": bridge.STATE.get("transfer"),
             "phone_offer": bridge.STATE.get("phone_offer"),
@@ -324,6 +326,23 @@ class PanelPaths:
                     bridge.STATE["apple_devices"][device_ip] = {"ip": device_ip, "name": final_name, "type": new_type, "last_seen": datetime.now().strftime("%H:%M"), "last_event": "Saved"}
                 return self.respond(200, json.dumps({"ok": True, "device": {"name": final_name, "type": new_type}}), "application/json; charset=utf-8")
             return self.respond(400, t("No IP specified"))
+
+        if path == "/app/link-pc":
+            peer_id = data.get("id") if isinstance(data, dict) else None
+            pc = next((dict(peer) for peer in bridge._dedupe_p2p_pcs(bridge.STATE.get("pcs", []))
+                       if peer_id and peer.get("id") == peer_id), None)
+            if pc is None:
+                return self.respond(404, json.dumps({"ok": False, "message": t("This PC is no longer nearby. Search again.")}),
+                                    "application/json; charset=utf-8")
+            current_cfg = bridge.load_config()
+            if current_cfg.get("pcs", {}).get(peer_id):
+                return self.respond(200, json.dumps({"ok": True, "message": t("Already linked")}),
+                                    "application/json; charset=utf-8")
+            threading.Thread(target=tray_actions.connect_pc,
+                             args=(current_cfg, [pc], bridge.save_pc_key),
+                             kwargs={"own_ca": bridge.own_ca(), "selected_pc": pc}, daemon=True).start()
+            return self.respond(202, json.dumps({"ok": True, "message": t("Confirm the matching code on both PCs.")}),
+                                "application/json; charset=utf-8")
 
         if path == "/app/scan":
             bridge.find_pcs_now()
