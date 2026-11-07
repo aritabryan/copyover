@@ -3,17 +3,66 @@ param(
     [Parameter(ValueFromRemainingArguments)][string[]]$Values
 )
 
+$ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+
+function Set-ImageClipboard {
+    param([string]$ImagePath, [scriptblock]$WriteClipboard = {
+        param($data)
+        [System.Windows.Forms.Clipboard]::SetDataObject($data, $true, 10, 100)
+    })
+    $image = [System.Drawing.Image]::FromFile($ImagePath)
+    $png = [IO.MemoryStream]::new()
+    $bmp = [IO.MemoryStream]::new()
+    $dib = $null
+    try {
+        if ($image.RawFormat.Guid -eq [System.Drawing.Imaging.ImageFormat]::Png.Guid) {
+            $raw = [IO.File]::ReadAllBytes($ImagePath)
+            $png.Write($raw, 0, $raw.Length)
+        } else {
+            $image.Save($png, [System.Drawing.Imaging.ImageFormat]::Png)
+        }
+        $png.Position = 0
+        $image.Save($bmp, [System.Drawing.Imaging.ImageFormat]::Bmp)
+        $bytes = $bmp.ToArray()
+        # CF_DIB contains the bitmap information and pixels, without the BMP file header.
+        $dib = [IO.MemoryStream]::new($bytes, 14, $bytes.Length - 14)
+        $data = [System.Windows.Forms.DataObject]::new()
+        $data.SetData([System.Windows.Forms.DataFormats]::Bitmap, $true, $image)
+        $data.SetData('PNG', $false, $png)
+        $data.SetData([System.Windows.Forms.DataFormats]::Dib, $false, $dib)
+        & $WriteClipboard $data
+    } finally {
+        if ($null -ne $dib) { $dib.Dispose() }
+        $bmp.Dispose()
+        $png.Dispose()
+        $image.Dispose()
+    }
+}
+
+function Export-ClipboardImage {
+    param($Data, [string]$ImagePath)
+    if ($null -eq $Data) { return $false }
+    $png = $Data.GetData('PNG', $false)
+    if ($png -is [IO.MemoryStream]) {
+        [IO.File]::WriteAllBytes($ImagePath, $png.ToArray())
+        return $true
+    }
+    $image = $Data.GetData([System.Windows.Forms.DataFormats]::Bitmap, $true)
+    if ($null -eq $image) { return $false }
+    try {
+        $image.Save($ImagePath, [System.Drawing.Imaging.ImageFormat]::Png)
+        return $true
+    } finally { $image.Dispose() }
+}
 
 switch ($Mode) {
     'set-image' {
-        $img = [System.Drawing.Image]::FromFile($Values[0])
-        try { [System.Windows.Forms.Clipboard]::SetImage($img) } finally { $img.Dispose() }
+        Set-ImageClipboard $Values[0]
     }
     'get-image' {
-        $img = [System.Windows.Forms.Clipboard]::GetImage()
-        if ($null -eq $img) { exit 1 }
-        try { $img.Save($Values[0], [System.Drawing.Imaging.ImageFormat]::Png) } finally { $img.Dispose() }
+        $data = [System.Windows.Forms.Clipboard]::GetDataObject()
+        if (-not (Export-ClipboardImage $data $Values[0])) { exit 1 }
     }
     'set-files' {
         $list = New-Object System.Collections.Specialized.StringCollection

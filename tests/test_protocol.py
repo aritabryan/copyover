@@ -202,6 +202,67 @@ class ProtocolTests(unittest.TestCase):
                 patch.object(bridge.so, 'read_files', return_value=[Path('large-file.zip')]):
             self.assertEqual(self.request('GET', '/sincronizar', headers={'X-Key': 'test-key'})[0], 204)
 
+    def test_sync_does_not_deliver_after_key_is_revoked_during_read(self):
+        from sync import ClipboardChanges
+        watcher = ClipboardChanges(lambda: 8)
+        with patch.object(bridge.Handler, 'changes', watcher), \
+                patch.object(bridge.Handler, '_valid_key', side_effect=[True, True, False]), \
+                patch.object(watcher, 'frame', return_value=(watcher.current(), b'private-content', 'text/plain')):
+            status, _, body = self.request('GET', '/sincronizar', headers={'X-Key': 'test-key'})
+        self.assertEqual(status, 401)
+        self.assertNotIn(b'private-content', body)
+
+    def test_received_copy_is_not_echoed_to_its_sender(self):
+        from sync import ClipboardChanges
+        sequence = [1]
+        content = ['local']
+        watcher = ClipboardChanges(lambda: sequence[0])
+        def write(text):
+            content[0] = text
+            sequence[0] += 1
+        with patch.object(bridge.Handler, 'changes', watcher), \
+                patch.object(bridge.so, 'set_text', side_effect=write), \
+                patch.object(bridge.so, 'read_files', return_value=[]), \
+                patch.object(bridge.so, 'read_text', side_effect=lambda: content[0]), \
+                patch.object(bridge, 'register_history'), \
+                patch.object(bridge.Handler, '_valid_key', return_value=True):
+            self.assertEqual(self.request('POST', '/send', b'phone', {'X-Key': 'test-key', 'Content-Type': 'text/plain'})[0], 200)
+            own = self.request('GET', '/sincronizar', headers={'X-Key': 'test-key'})
+            self.assertEqual((own[0], own[2]), (204, b''))
+            other = self.request('GET', '/sincronizar', headers={'X-Key': 'other-key'})
+            self.assertEqual((other[0], other[2]), (200, b'phone'))
+            write('phone')  # A later local copy of identical content is a new event.
+            local = self.request('GET', '/sincronizar', headers={'X-Key': 'test-key'})
+            self.assertEqual((local[0], local[2]), (200, b'phone'))
+
+    def test_received_image_is_not_echoed_but_remains_available_manually(self):
+        from sync import ClipboardChanges
+        sequence = [1]
+        watcher = ClipboardChanges(lambda: sequence[0])
+        import io
+        from PIL import Image
+        buffer = io.BytesIO()
+        Image.new('RGB', (2, 2), 'red').save(buffer, 'PNG')
+        image = buffer.getvalue()
+        def write(path):
+            sequence[0] += 1
+        def read(path):
+            path.write_bytes(image)
+            return True
+        with tempfile.TemporaryDirectory() as folder, \
+                patch.object(bridge.Handler, 'changes', watcher), \
+                patch.object(bridge, 'get_downloads_folder', return_value=Path(folder)), \
+                patch.object(bridge, 'free_path', return_value=Path(folder) / 'image.png'), \
+                patch.object(bridge.so, 'set_image', side_effect=write), \
+                patch.object(bridge.so, 'read_files', return_value=[]), \
+                patch.object(bridge.so, 'read_text', return_value=None), \
+                patch.object(bridge.so, 'read_image', side_effect=read), \
+                patch.object(bridge, 'register_history'):
+            self.assertEqual(self.request('POST', '/send', image, {'X-Key': 'test-key', 'Content-Type': 'image/png'})[0], 200)
+            self.assertEqual(self.request('GET', '/sincronizar', headers={'X-Key': 'test-key'})[0], 204)
+            manual = self.request('GET', '/receive', headers={'X-Key': 'test-key'})
+            self.assertEqual((manual[0], manual[2]), (200, image))
+
     def test_identity_proof_is_public_but_never_returns_key(self):
         nonce = "a" * 64
         with patch.object(bridge.Handler, "identifier", "b" * 32):

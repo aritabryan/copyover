@@ -8,6 +8,7 @@ import os
 import secrets
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from ctypes import wintypes
@@ -151,7 +152,16 @@ def helper(mode, *values, wait=True):
 
 
 def set_image(path):
-    return helper("set-image", path)
+    with Path(path).open("rb") as source:
+        png = source.read(8) == b"\x89PNG\r\n\x1a\n"
+    if png:
+        return helper("set-image", path)
+    from PIL import Image
+    with tempfile.TemporaryDirectory(prefix="copyover-clipboard-") as folder:
+        normalized = Path(folder) / "image.png"
+        with Image.open(path) as image:
+            image.convert("RGBA").save(normalized, "PNG")
+        return helper("set-image", normalized)
 
 
 def read_image(path):

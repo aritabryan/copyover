@@ -2018,8 +2018,10 @@ class Handler(AndroidTransfers, panel_routes.PanelPaths, BaseHTTPRequestHandler)
         try:
             if not changed:
                 return self.respond(204, extra=headers)
-            from sync import automatic_content
-            data, mime = automatic_content(so)
+            token, data, mime = self.changes.frame(self.headers.get('X-Key') or '', so)
+            if not self.authorized():
+                return
+            headers.update({'X-CopyOver-Version': token, 'X-Puente-Version': token})
             return self.respond(204 if data is None else 200, data or b'', mime, headers)
         except (BrokenPipeError, ConnectionResetError):
             pass
@@ -2568,6 +2570,17 @@ class Handler(AndroidTransfers, panel_routes.PanelPaths, BaseHTTPRequestHandler)
             # The other PC reconnects and asks how far it got.
             return
 
+    def _write_received_clipboard(self, writer, value):
+        if self.changes is None:
+            return writer(value)
+        from sync import content_fingerprint
+        expected = None
+        if writer == so.set_text:
+            expected = content_fingerprint(value.encode('utf-8'), 'text/plain')
+        elif writer == so.set_image:
+            expected = content_fingerprint(value.read_bytes(), 'image/png')
+        return self.changes.write(self.headers.get('X-Key') or '', writer, value, expected=expected)
+
     def receive(self, parts):
         # Large parts are already on disk (receiving.PartOnDisk): only the in-memory ones need space.
         total_bytes = sum(len(d) for _, _, d in parts if isinstance(d, bytes))
@@ -2637,21 +2650,21 @@ class Handler(AndroidTransfers, panel_routes.PanelPaths, BaseHTTPRequestHandler)
             if rich_text.is_just_a_clipboard_name(joined_text):
                 # The photo or file never left the phone: only the clipboard's name did.
                 return t("The PC only got the name of what you copied, not the photo or file. Share it from the app instead (Share → Send PC).")
-            so.set_text(joined_text)
+            self._write_received_clipboard(so.set_text, joined_text)
             link = links.web_link(joined_text)
             register_history("received", self._identify_client("Text copied"), f"Texto: {joined_text[:40]}", size=len(joined_text.encode("utf-8")), link=link)
             if self.notices:
                 notify_text(joined_text, link, self._sender_name())
             return t("Text copied on the PC")
         if len(saved) == 1 and images:
-            so.set_image(images[0])
+            self._write_received_clipboard(so.set_image, images[0])
             img_weight = images[0].stat().st_size if images[0].exists() else 0
             register_history("received", self._identify_client("Photo received"), images[0].name, size=img_weight, local_path=str(images[0]))
             if self.notices and load_config().get("clipboard_notifications", False):
                 notify_received([images[0]], self._sender_name())
             return t("Photo copied on the PC")
         if saved:
-            so.set_files(saved)
+            self._write_received_clipboard(so.set_files, saved)
             names = ", ".join(r.name for r in saved)
             weight_g = sum(r.stat().st_size for r in saved if r.exists())
             register_history("received", self._identify_client("File received"), names, size=weight_g, local_path=str(saved[0]))

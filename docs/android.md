@@ -7,7 +7,7 @@ A native Kotlin + Rust app for Android 8.0 or newer. It keeps your current keybo
 - [Install and link](#install-and-link)
 - [Receiving and sending](#receiving-and-sending)
 - [The notification](#the-notification)
-- [App updates from the PC](#app-updates-from-the-pc)
+- [App updates from GitHub](#app-updates-from-github)
 - [Preparing a release (for maintainers)](#preparing-a-release-for-maintainers)
 
 The app’s own documentation, the build instructions and its tests are in **[android/README.md](../android/README.md)**.
@@ -33,6 +33,13 @@ It remembers the PC after that, even if its IP changes. No QR code, address or k
 - The app keeps several linked PCs, shows a local clipboard history and the status of each direction.
 - Manual transfers show progress and can be canceled. The app can also accept files prepared from the PC panel and save, open or share them.
 - Files between Android and the PC have no fixed size cap, subject to free disk space (update both devices).
+
+Copies sent to the PC are not automatically returned to the same phone. Other linked phones can still
+receive them, and **Get from PC** remains available when you want to receive the same content manually.
+
+Windows receives images as PNG and standard bitmap formats, keeping the original resolution and PNG
+transparency. Windows clipboard history (**Win+V**) has its own [4 MB limit per item](https://support.microsoft.com/en-gb/windows/apps/using-the-clipboard).
+An image can still paste with **Ctrl+V** even when Windows excludes it from that history.
 
 ## The notification
 

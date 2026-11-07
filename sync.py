@@ -1,4 +1,7 @@
 """Wait for Windows clipboard changes without reading clipboard data on every tick."""
+import hashlib
+import hmac
+import threading
 import secrets
 import time
 import tempfile
@@ -20,12 +23,56 @@ def automatic_content(clipboard):
     return None, 'application/octet-stream'
 
 
+def content_fingerprint(data, mime):
+    if mime.startswith('text/plain'):
+        text = data.decode('utf-8').replace('\r\n', '\n').replace('\r', '\n')
+        return hashlib.sha256(b'text:' + text.encode('utf-8')).digest()
+    if mime.startswith('image/'):
+        import io
+        from PIL import Image
+        with Image.open(io.BytesIO(data)) as image:
+            with image.convert('RGBA') as pixels:
+                digest = hashlib.sha256(f'image:{pixels.size}:'.encode())
+                digest.update(pixels.tobytes())
+                return digest.digest()
+    return None
+
+
 class ClipboardChanges:
     def __init__(self, sequence, clock=time.monotonic, sleep=time.sleep):
         self.sequence = sequence
         self.clock = clock
         self.sleep = sleep
         self.session = secrets.token_hex(16)
+        self._lock = threading.RLock()
+        self._origin_secret = secrets.token_bytes(32)
+        self._origin = None
+
+    def _identity(self, key):
+        return hmac.digest(self._origin_secret, key.encode('utf-8'), hashlib.sha256)
+
+    def write(self, key, writer, *args, expected=None):
+        """Publish origin only after a successful write, together with its clipboard cursor."""
+        with self._lock:
+            self._origin = None
+            result = writer(*args)
+            if result is not False:
+                self._origin = (self.current(), self._identity(key), expected)
+            return result
+
+    def frame(self, key, clipboard):
+        """Read one stable clipboard version; a later local copy never inherits its origin."""
+        with self._lock:
+            for _ in range(3):
+                token = self.current()
+                data, mime = automatic_content(clipboard)
+                if token == self.current():
+                    if (data is not None and self._origin is not None
+                            and self._origin[:2] == (token, self._identity(key))
+                            and self._origin[2] == content_fingerprint(data, mime)):
+                        return token, None, mime
+                    return token, data, mime
+            raise OSError('Clipboard changed while reading')
 
     def current(self):
         return f'{self.session}:{self.sequence()}'
