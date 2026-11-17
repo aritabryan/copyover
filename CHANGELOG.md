@@ -2,6 +2,15 @@
 
 All notable changes to CopyOver. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.0.3 — 2026-11-17
+
+### Fixed
+
+- Keep the tray window within the monitor's work area, including scaled displays and small screens.
+- Rebuild local discovery after suspension, on manual searches and periodically to recover failed mDNS connections.
+- Use independent temporary files when saving configuration to avoid collisions between overlapping writes.
+- Allow Android to search for a new PC or select another saved PC while reconnecting; cancelled operations no longer overwrite the current screen.
+
 ## 1.0.2 — 2026-11-05
 
 ### Fixed
