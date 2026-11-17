@@ -103,6 +103,20 @@ class TestWindowsTemporaryFolder(BaseTemporary):
 
 
 class TestSecretsInDisk(unittest.TestCase):
+    def test_overlapping_writes_use_different_temporary_files(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'config.json'
+            original = private_files._replace
+            destinations = []
+            def replace(source, target):
+                destinations.append(source)
+                if len(destinations) == 1:
+                    private_files.write_private(path, b'{"value":2}')
+                original(source, target)
+            with patch.object(private_files, '_replace', side_effect=replace):
+                private_files.write_private(path, b'{"value":1}')
+            self.assertEqual(len(set(destinations)), 2)
+            self.assertEqual(json.loads(path.read_text()), {'value': 1})
     def setUp(self):
         self._folder = tempfile.TemporaryDirectory()
         self.folder = Path(self._folder.name)

@@ -113,17 +113,16 @@ def write_private(path: Path, data: bytes) -> None:
     """Writes datos to ruta readable only by this user, in one go: a .tmp created anew with 0600 (never one
     left behind, nor a link) that replaces ruta. A cut halfway leaves the old file whole."""
     path = Path(path)
-    temporary = path.with_name(path.name + ".tmp")
+    descriptor, name = tempfile.mkstemp(prefix=path.name + '.', suffix='.tmp', dir=path.parent)
+    temporary = Path(name)
     try:
-        temporary.unlink()
-    except FileNotFoundError:
-        pass
-    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0), 0o600)
-    with os.fdopen(descriptor, "wb") as file:
-        file.write(data)
-        file.flush()
-        os.fsync(file.fileno())
-    _replace(temporary, path)
+        with os.fdopen(descriptor, "wb") as file:
+            file.write(data)
+            file.flush()
+            os.fsync(file.fileno())
+        _replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _replace(origin: Path, destination: Path) -> None:

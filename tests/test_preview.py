@@ -35,6 +35,15 @@ class MenuDevicesTests(unittest.TestCase):
 
 
 class PositionTests(unittest.TestCase):
+    def test_clamps_below_icon_to_bottom_of_work_area(self):
+        x, y = preview.position_over((250, 900), (0, 0, 800, 600), width=320, height=480)
+        self.assertLessEqual(y + 480, 600)
+
+    def test_native_scaled_window_is_clamped_and_shrunk_on_small_monitor(self):
+        self.assertEqual(preview.fit_bounds((1700, 800, 640, 960), (0, 0, 1920, 1040)),
+                         (1270, 70, 640, 960))
+        self.assertEqual(preview.fit_bounds((-900, -100, 640, 960), (-800, 0, -400, 600)),
+                         (-790, 10, 380, 580))
     def test_pastes_to_work_area_right_lower_corner(self):
         self.assertEqual(preview.position((0, 0, 1920, 1032), width=380, height=560, margin=12), (1528, 460))
 

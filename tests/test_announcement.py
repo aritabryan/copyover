@@ -1,6 +1,7 @@
 """The network announcement: when it's redone, which IP it carries and whether another PC uses the same
 .local."""
 import sys
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -57,7 +58,7 @@ def run_announcement(steps, cfg=None, on_wait=None):
             patch.object(bridge, "register_announcement", side_effect=register), \
             patch.object(bridge, "_check_namesakes"), \
             patch("zeroconf.ServiceBrowser", return_value=MagicMock()), \
-            patch.object(bridge, "_FIND_NOW", MagicMock(wait=wait)), \
+            patch.object(bridge, "_FIND_NOW", MagicMock(wait=wait, is_set=lambda: False)), \
             patch.object(bridge, "load_config", return_value={}), patch.object(bridge, "save_config"):
         try:
             bridge.announce_in_network(cfg)
@@ -67,6 +68,33 @@ def run_announcement(steps, cfg=None, on_wait=None):
 
 
 class ReannounceTests(unittest.TestCase):
+    def test_periodic_recovery_recreates_unchanged_network(self):
+        with patch.object(bridge, 'DISCOVERY_RECOVERY_INTERVAL', 0):
+            logs = run_announcement([([HOME], True)] * 3)
+        self.assertEqual(len(logs), 3)
+
+    def test_recovery_discards_old_discovery_entries(self):
+        from unittest.mock import Mock
+        observer = Mock()
+        with patch.object(bridge.p2p, 'PcsObserver', return_value=observer), \
+                patch.object(bridge, 'DISCOVERY_RECOVERY_INTERVAL', 0):
+            run_announcement([([HOME], True)] * 3)
+        self.assertEqual(observer.clean.call_count, 2)
+
+    def test_resume_after_pause_recreates_unchanged_network(self):
+        ticks = [0]
+        def clock():
+            return ticks[0]
+        def suspend(_):
+            ticks[0] += 45
+        with patch.object(bridge.time, 'monotonic', side_effect=clock):
+            logs = run_announcement([([HOME], True)] * 3, on_wait=suspend)
+        self.assertEqual(len(logs), 3)
+    def test_manual_search_rebuilds_the_mdns_connection(self):
+        def search(_):
+            bridge._FIND_NOW.is_set = lambda: True
+        logs = run_announcement([([HOME], True)] * 3, on_wait=search)
+        self.assertGreaterEqual(len(logs), 2)
     def setUp(self):
         self.state = {k: bridge.STATE.get(k) for k in ("pcs", "ip", "announced", "repeated_name")}
 

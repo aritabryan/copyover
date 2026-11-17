@@ -43,7 +43,7 @@ class NetworkChangeTests(unittest.TestCase):
         with patch.object(bridge, "ip_local", side_effect=ip_local),                 patch("network.interfaces", return_value=[]), patch("network.output_ip", return_value=None),                 patch.object(bridge, "_check_namesakes"), \
                 patch.object(bridge, "register_announcement", return_value=(MagicMock(), MagicMock(addresses=[]))), \
                 patch("zeroconf.ServiceBrowser", side_effect=browser), \
-                patch.object(bridge, "_FIND_NOW", MagicMock(wait=wait)), \
+                patch.object(bridge, "_FIND_NOW", MagicMock(wait=wait, is_set=lambda: False)), \
                 patch.object(bridge, "load_config", return_value={}), patch.object(bridge, "save_config"), \
                 self.assertRaises(_End):
             bridge.announce_in_network({"id": "yo", "name": "pc", "port": 8765})

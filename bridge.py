@@ -2710,6 +2710,7 @@ _FIND_NOW = threading.Event()
 _ANNOUNCED_NAME: dict = {}
 IP_WIFI_DIRECT = "192.168.137.1"
 NAMESAKE_CHECK_INTERVAL = 600.0
+DISCOVERY_RECOVERY_INTERVAL = 300.0
 
 
 def find_pcs_now():
@@ -2785,6 +2786,8 @@ def announce_in_network(cfg):
     my_id = cfg["id"]
     zc, announced_ip, browser = None, None, None
     path_before, last_review = None, None
+    last_recovery = time.monotonic()
+    last_tick = last_recovery
 
     def on_change_pcs(pcs):
         STATE["pcs"] = pcs
@@ -2796,6 +2799,14 @@ def announce_in_network(cfg):
     observer = p2p.PcsObserver(my_id, on_change=on_change_pcs)
 
     while True:
+        now = time.monotonic()
+        recover = (_FIND_NOW.is_set() or now - last_recovery >= DISCOVERY_RECOVERY_INTERVAL
+                   or now - last_tick > 30)
+        if recover:
+            _FIND_NOW.clear()
+            network.forget()
+            last_recovery = now
+        last_tick = now
         name = _ANNOUNCED_NAME["name"]
         has_path = network.output_ip() is not None
         if path_before is not None and has_path != path_before:
@@ -2806,7 +2817,7 @@ def announce_in_network(cfg):
         ip_key = announcement_key(name, ip, active_wfd, has_path, network.interfaces())
         STATE["ip"] = None if ip == "127.0.0.1" else ip
         STATE["announced"] = zc is not None and ip_key == announced_ip
-        if ip_key != announced_ip:
+        if recover or ip_key != announced_ip:
             if announced_ip is not None:
                 # The network changed: the PCs seen on the previous one are out of reach (they lingered as
                 # «ghosts» and sending to them took 21 s to fail). The new browser fills the list again.
@@ -2860,15 +2871,7 @@ def announce_in_network(cfg):
             # after.
             last_review = time.monotonic()
             threading.Thread(target=_check_namesakes, args=(zc, name), daemon=True).start()
-        if _FIND_NOW.wait(3):
-            _FIND_NOW.clear()
-            if zc and browser:
-                # A new browser sends its mDNS queries right away instead of waiting for its next turn.
-                try:
-                    browser.cancel()
-                    browser = ServiceBrowser(zc, p2p.SERVICE_TYPE, observer)
-                except Exception:
-                    logging.exception("Couldn't search for PCs again")
+        _FIND_NOW.wait(3)
 
 
 def _responds_ping(ip: str, ms_wait: int = 600) -> bool:

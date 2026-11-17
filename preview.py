@@ -36,7 +36,41 @@ def position_over(point, area, width=WIDTH, height=HEIGHT, margin=MARGIN):
     y = py - height - margin
     if y < top + margin:
         y = min(py + margin, bottom - height - margin)
-    return x, max(y, top + margin)
+    return max(left, x), max(top, min(y, max(top, bottom - height - margin)))
+
+
+def fit_bounds(bounds, area, margin=MARGIN):
+    """Clamp the actual native window, including Windows scaling, to one monitor."""
+    x, y, width, height = bounds
+    left, top, right, bottom = area
+    inset_x = min(margin, max(0, (right - left - 1) // 2))
+    inset_y = min(margin, max(0, (bottom - top - 1) // 2))
+    width = min(width, max(1, right - left - 2 * inset_x))
+    height = min(height, max(1, bottom - top - 2 * inset_y))
+    return (max(left + inset_x, min(x, right - inset_x - width)),
+            max(top + inset_y, min(y, bottom - inset_y - height)), width, height)
+
+
+def fit_native_window(window, area):
+    if sys.platform != "win32":
+        return
+    from ctypes import wintypes
+    try:
+        handle = int(window.native.Handle.ToInt64())
+        rectangle = wintypes.RECT()
+        get_rect = ctypes.windll.user32.GetWindowRect
+        get_rect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+        if not get_rect(handle, ctypes.byref(rectangle)):
+            return
+        bounds = (rectangle.left, rectangle.top, rectangle.right - rectangle.left,
+                  rectangle.bottom - rectangle.top)
+        x, y, width, height = fit_bounds(bounds, area)
+        move = ctypes.windll.user32.SetWindowPos
+        move.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
+                         ctypes.c_int, ctypes.c_int, wintypes.UINT]
+        move(handle, None, x, y, width, height, 0x0014)  # no activation or z-order change
+    except Exception:
+        logging.exception("Couldn't keep the quick view inside the monitor")
 
 
 def cursor():
@@ -85,6 +119,9 @@ def work_area(point=None):
         _fields_ = [("cbSize", ctypes.c_ulong), ("rcMonitor", RECT), ("rcWork", RECT), ("dwFlags", ctypes.c_ulong)]
 
     u32 = ctypes.windll.user32
+    u32.MonitorFromPoint.argtypes = [POINT, ctypes.c_ulong]
+    u32.MonitorFromPoint.restype = ctypes.c_void_p
+    u32.GetMonitorInfoW.argtypes = [ctypes.c_void_p, ctypes.POINTER(MONITORINFO)]
     if point:
         point = POINT(*point)
     else:
@@ -170,13 +207,13 @@ def _run(port, bridge_pid=None):
     if sys.stderr is None:
         sys.stderr = open(Path(__file__).with_name("preview.log"), "a", encoding="utf-8")
 
-    import webview
-
     if sys.platform == "win32":
         try:
             ctypes.windll.shcore.SetProcessDpiAwareness(2)  # so move() works in the same pixels as the work area
         except Exception:
             pass
+
+    import webview
 
     visible = {"now": False}
 
@@ -222,6 +259,7 @@ def _run(port, bridge_pid=None):
                     x, y = position(work_area())
                 window.move(x, y)
                 window.show()
+                fit_native_window(window, work_area(point))
                 _without_button_in_bar()  # WinForms puts it back when showing; it's removed every time
                 _bring_to_front()
                 window.evaluate_js("window.dispatchEvent(new Event('airbridge-mostrar'))")
