@@ -19,7 +19,7 @@ fun EquipmentPanel(model: SettingsViewModel, refresh: () -> Unit) {
     model.savedPcs.forEach { pc ->
         val id = PcCatalog.identity(pc)
         var menu by remember(id) { mutableStateOf(false) }
-        Card(onClick = { model.choosePc(id); refresh() }, enabled = !model.busy,
+        Card(onClick = { model.choosePc(id); refresh() },
             modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -35,7 +35,7 @@ fun EquipmentPanel(model: SettingsViewModel, refresh: () -> Unit) {
                 Box {
                     IconButton(onClick = { menu = true }) { PuenteIcon(R.drawable.ic_more, stringResource(R.string.pc_options, pc.name)) }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        if (id != model.activePcId) DropdownMenuItem(text = { Text(stringResource(R.string.device_use)) }, enabled = !model.busy,
+                        if (id != model.activePcId) DropdownMenuItem(text = { Text(stringResource(R.string.device_use)) },
                             onClick = { menu = false; model.choosePc(id); refresh() })
                         DropdownMenuItem(text = { Text(stringResource(R.string.device_rename)) }, onClick = { menu = false; name = pc.name; rename = pc })
                         DropdownMenuItem(text = { Text(stringResource(R.string.device_unlink)) }, enabled = !model.busy, onClick = { menu = false; forget = pc })
@@ -44,7 +44,7 @@ fun EquipmentPanel(model: SettingsViewModel, refresh: () -> Unit) {
             }
         }
     }
-    ActionButton(stringResource(R.string.link_another_pc), R.drawable.ic_plus, model::search, enabled = !model.busy)
+    ActionButton(stringResource(R.string.link_another_pc), R.drawable.ic_plus, model::search)
     if (model.code.isNotEmpty()) Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.pairing_code_title), style = MaterialTheme.typography.titleMedium)

@@ -39,11 +39,11 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
 class SettingsViewModel(application: android.app.Application) : AndroidViewModel(application) {
+    private val operations = SettingsOperation()
     private val store = ConnectionStore(application)
     private val autoConnection = AutoConnection(application)
     private val discovery = PcDiscovery(application)
@@ -87,7 +87,8 @@ class SettingsViewModel(application: android.app.Application) : AndroidViewModel
     fun checkConnection() = connect(reportCheck = true) { autoConnection.current() }
 
     fun search() {
-        if (busy) return
+        operations.cancel()
+        connectionCheck.dismiss()
         connectionError = null
         busy = true
         pcs = emptyList()
@@ -95,13 +96,17 @@ class SettingsViewModel(application: android.app.Application) : AndroidViewModel
         needsConfirmation = false
         pendingConnection = null
         show(text(R.string.status_searching_pcs))
-        viewModelScope.launch {
+        operations.launch(viewModelScope, { busy = it }) {
             try {
-                pcs = discovery.scan()
+                val found = discovery.scan()
+                operations.ensureCurrent()
+                pcs = found
                 show(text(if (pcs.isEmpty()) R.string.status_no_pcs else R.string.status_choose_pc))
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { connectionFailed(text(R.string.status_search_failed)) }
-            finally { busy = false }
+            catch (_: Exception) {
+                operations.ensureCurrent()
+                connectionFailed(text(R.string.status_search_failed))
+            }
         }
     }
 
@@ -112,26 +117,32 @@ class SettingsViewModel(application: android.app.Application) : AndroidViewModel
         show(text(R.string.status_requesting))
         needsConfirmation = false
         pendingConnection = null
-        viewModelScope.launch {
+        operations.launch(viewModelScope, { busy = it }) {
             try {
-                pendingConnection = withTimeout(115000) { awaitApproval(pc) }
+                val approved = withTimeout(115000) { awaitApproval(pc) }
+                operations.ensureCurrent()
+                pendingConnection = approved
                 needsConfirmation = true
                 show(text(R.string.status_pc_accepted))
             } catch (_: TimeoutCancellationException) {
+                operations.ensureCurrent()
                 code = ""
                 connectionFailed(text(R.string.status_request_expired))
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) {
+                operations.ensureCurrent()
                 code = ""
                 connectionFailed(getApplication<android.app.Application>().describe(error, R.string.status_link_failed))
             } catch (_: UnsatisfiedLinkError) {
+                operations.ensureCurrent()
                 connectionFailed(text(R.string.install_incomplete))
-            } finally { busy = false }
+            }
         }
     }
 
     private suspend fun awaitApproval(pc: DiscoveredPc): Connection {
         val ticket = withContext(Dispatchers.IO) { repository.beginPair(pc, Build.MODEL) }
+        operations.ensureCurrent()
         code = ticket.code
         show(text(R.string.status_accept_on_pc))
         while (true) {
@@ -151,15 +162,17 @@ class SettingsViewModel(application: android.app.Application) : AndroidViewModel
         connectionError = null
         busy = true
         show(text(R.string.status_searching_pc))
-        viewModelScope.launch {
+        operations.launch(viewModelScope, { busy = it }) {
             try {
                 val connection = if (reportCheck) connectionCheck.check(operation) { error ->
                     if (error is UnsatisfiedLinkError) text(R.string.install_incomplete)
                     else getApplication<android.app.Application>().describe(error, R.string.status_connect_failed)
                 } ?: run {
+                    operations.ensureCurrent()
                     connectionFailed(connectionCheck.feedback.value.message)
                     return@launch
                 } else operation()
+                operations.ensureCurrent()
                 pcName = connection.name
                 paired = true
                 pendingConnection = null
@@ -172,10 +185,12 @@ class SettingsViewModel(application: android.app.Application) : AndroidViewModel
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
+                operations.ensureCurrent()
                 connectionFailed(getApplication<android.app.Application>().describe(error, R.string.status_connect_failed))
             } catch (_: UnsatisfiedLinkError) {
+                operations.ensureCurrent()
                 connectionFailed(text(R.string.install_incomplete))
-            } finally { busy = false }
+            }
         }
     }
 
@@ -205,7 +220,14 @@ class SettingsViewModel(application: android.app.Application) : AndroidViewModel
         paired = active.key.isNotEmpty()
     }
     fun choosePc(id: String) {
-        if (busy || id == activePcId) return
+        if (id == activePcId) return
+        operations.cancel()
+        busy = false
+        pendingConnection = null
+        needsConfirmation = false
+        code = ""
+        pcs = emptyList()
+        connectionCheck.dismiss()
         TransferService.cancelForPc(getApplication(), activePcId)
         store.select(id)
         AndroidOfferMonitor.get(getApplication()).clearPending()

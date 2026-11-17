@@ -1,6 +1,8 @@
 package dev.puente.android
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -10,22 +12,29 @@ data class ConnectionCheckFeedback(val phase: ConnectionCheckPhase = ConnectionC
 
 /** A manual check reports its result independently of the background receiver. */
 class ConnectionCheckController {
+    private var generation = 0L
     private val mutable = MutableStateFlow(ConnectionCheckFeedback())
     val feedback = mutable.asStateFlow()
 
-    fun dismiss() { mutable.value = ConnectionCheckFeedback() }
+    fun dismiss() { generation++; mutable.value = ConnectionCheckFeedback() }
 
     suspend fun check(probe: suspend () -> Connection, describe: (Throwable) -> String): Connection? {
+        val attempt = ++generation
         mutable.value = ConnectionCheckFeedback(ConnectionCheckPhase.CHECKING)
         return try {
-            probe().also { mutable.value = ConnectionCheckFeedback(ConnectionCheckPhase.SUCCESS, pcName = it.name) }
+            probe().also {
+                currentCoroutineContext().ensureActive()
+                if (attempt == generation) mutable.value = ConnectionCheckFeedback(ConnectionCheckPhase.SUCCESS, pcName = it.name)
+            }
         } catch (cancelled: CancellationException) {
-            dismiss()
+            if (attempt == generation) dismiss()
             throw cancelled
         } catch (error: Exception) {
-            failed(describe(error))
+            currentCoroutineContext().ensureActive()
+            if (attempt == generation) failed(describe(error)) else null
         } catch (error: UnsatisfiedLinkError) {
-            failed(describe(error))
+            currentCoroutineContext().ensureActive()
+            if (attempt == generation) failed(describe(error)) else null
         }
     }
 
