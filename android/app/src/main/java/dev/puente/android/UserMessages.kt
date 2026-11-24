@@ -11,7 +11,23 @@ class LocalizedException(@StringRes val text: Int, private vararg val args: Any)
 
 fun Context.describe(error: Throwable, @StringRes fallback: Int): String = when (error) {
     is LocalizedException -> error.resolve(this)
-    else -> error.message?.takeIf { it.isNotBlank() }?.let { NativeMessages.translate(this, it) } ?: getString(fallback)
+    else -> {
+        android.util.Log.w("CopyOver", "Operation failed", error)
+        val translated = error.message?.let { NativeMessages.friendly(this, it) }
+        translated ?: getString(UserErrorMessage.resource(error, fallback))
+    }
+}
+
+internal object UserErrorMessage {
+    @StringRes fun resource(error: Throwable, @StringRes fallback: Int): Int = when {
+        error is NativeError && error.code in setOf("unauthorized", "forbidden") -> R.string.receive_link_rejected
+        error is NativeError && error.code == "certificate" -> R.string.native_certificate_mismatch
+        error is NativeError && error.code == "identity" -> R.string.native_verify_failed
+        error is NativeError && error.code == "network" -> R.string.pc_not_found
+        error is java.net.SocketTimeoutException || error is java.net.ConnectException ||
+            error is java.net.UnknownHostException -> R.string.pc_not_found
+        else -> fallback
+    }
 }
 
 fun Context.fileSize(bytes: Long): String = Formatter.formatShortFileSize(this, bytes.coerceAtLeast(0))
@@ -86,4 +102,7 @@ object NativeMessages {
     )
 
     fun translate(context: Context, message: String): String = known[message]?.let(context::getString) ?: message
+
+    fun friendly(context: Context, message: String): String? = known[message]?.let(context::getString)
+        ?: message.takeIf { value -> known.values.any { context.getString(it) == value } }
 }

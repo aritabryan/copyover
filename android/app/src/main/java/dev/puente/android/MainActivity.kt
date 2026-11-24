@@ -41,9 +41,14 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 class SettingsViewModel(application: android.app.Application) : AndroidViewModel(application) {
     private val operations = SettingsOperation()
+    private val recovery = ForegroundRecovery()
+    private var foregroundChecks: Job? = null
     private val store = ConnectionStore(application)
     private val autoConnection = AutoConnection(application)
     private val discovery = PcDiscovery(application)
@@ -83,10 +88,26 @@ class SettingsViewModel(application: android.app.Application) : AndroidViewModel
 
     init { if (paired) reconnect() else search() }
 
-    fun reconnect() = connect { autoConnection.current() }
+    fun reconnect() { recovery.resume(); connect { autoConnection.current() } }
     fun checkConnection() = connect(reportCheck = true) { autoConnection.current() }
 
+    fun foreground(active: Boolean) {
+        foregroundChecks?.cancel()
+        foregroundChecks = null
+        if (!active) return
+        recovery.foreground()
+        foregroundChecks = viewModelScope.launch {
+            while (isActive) {
+                if (!needsConfirmation && recovery.shouldCheck(paired, busy, connected)) {
+                    connect { autoConnection.current() }
+                }
+                delay(15000)
+            }
+        }
+    }
+
     fun search() {
+        recovery.pause()
         operations.cancel()
         connectionCheck.dismiss()
         connectionError = null
@@ -112,6 +133,7 @@ class SettingsViewModel(application: android.app.Application) : AndroidViewModel
 
     fun pair(pc: DiscoveredPc) {
         if (busy) return
+        recovery.pause()
         connectionError = null
         busy = true
         show(text(R.string.status_requesting))
@@ -165,6 +187,7 @@ class SettingsViewModel(application: android.app.Application) : AndroidViewModel
         operations.launch(viewModelScope, { busy = it }) {
             try {
                 val connection = if (reportCheck) connectionCheck.check(operation) { error ->
+                    recovery.requiresReview = ReceivePolicy.needsReview(error)
                     if (error is UnsatisfiedLinkError) text(R.string.install_incomplete)
                     else getApplication<android.app.Application>().describe(error, R.string.status_connect_failed)
                 } ?: run {
@@ -182,10 +205,12 @@ class SettingsViewModel(application: android.app.Application) : AndroidViewModel
                 reloadPcs()
                 status = text(R.string.pc_linked)
                 connected = true
+                recovery.resume()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
                 operations.ensureCurrent()
+                recovery.requiresReview = ReceivePolicy.needsReview(error)
                 connectionFailed(getApplication<android.app.Application>().describe(error, R.string.status_connect_failed))
             } catch (_: UnsatisfiedLinkError) {
                 operations.ensureCurrent()
@@ -222,6 +247,7 @@ class SettingsViewModel(application: android.app.Application) : AndroidViewModel
     fun choosePc(id: String) {
         if (id == activePcId) return
         operations.cancel()
+        recovery.resume()
         busy = false
         pendingConnection = null
         needsConfirmation = false
@@ -334,10 +360,16 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         model.reloadAutomaticReceive()
         model.reloadPcs()
+        model.foreground(true)
         shizuku.refresh()
         fileNotificationsAllowed = AndroidOfferMonitor.notificationsAllowed(this)
         if (model.paired) refreshAutomaticReceive()
         if (model.notification && !QuickNotification.show(this)) model.notificationEnabled(false)
+    }
+
+    override fun onPause() {
+        model.foreground(false)
+        super.onPause()
     }
 
     private fun refreshAutomaticReceive() {
