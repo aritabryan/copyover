@@ -2,6 +2,13 @@
 
 All notable changes to CopyOver. Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.0.4 — 2026-11-24
+
+### Fixed
+
+- Recheck the saved PC when Android returns to the foreground and retry temporary connection failures without interrupting pairing or PC selection.
+- Show clear Android error messages instead of internal exception details, while keeping link and certificate failures distinguishable.
+
 ## 1.0.3 — 2026-11-17
 
 ### Fixed
